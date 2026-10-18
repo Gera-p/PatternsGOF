@@ -13,4 +13,9 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
   </ItemGroup>
 
+  <!-- Контент GoF (Этап 4) лежит рядом с кодом и доступен и приложениям, и тестам. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Content/data/**/*.json" />
+  </ItemGroup>
+
 </Project>
