@@ -9,24 +9,27 @@ public static class Routing
     public const string Pattern = "pattern";
     public const string Favorites = "favorites";
 
-    public static string PatternUri(string patternId) => $"{Pattern}/{patternId}";
+    public static string CategoryUri(string categoryId) => $"{Category}?id={Uri.EscapeDataString(categoryId)}";
+
+    public static string PatternUri(string patternId) => $"{Pattern}?id={Uri.EscapeDataString(patternId)}";
 }
 
-/// <summary>Реализация <see cref="INavigationService"/> поверх Shell.GoToAsync.</summary>
+/// <summary>Реализация <see cref="INavigationService"/> поверх Shell.GoToAsync с query-параметрами.</summary>
 public sealed class ShellNavigationService : INavigationService
 {
     public string CurrentRoute { get; private set; } = Routing.Main;
 
     public Task NavigateToCategoryAsync(string categoryId, CancellationToken cancellationToken = default)
     {
-        CurrentRoute = $"{Routing.Category}/{categoryId}";
-        return Shell.Current.GoToAsync(CurrentRoute);
+        CurrentRoute = Routing.Category;
+        // id передаётся через QueryProperty целевой страницы (см. CategoryPage).
+        return Shell.Current.GoToAsync(Routing.CategoryUri(categoryId));
     }
 
     public Task NavigateToPatternAsync(string patternId, CancellationToken cancellationToken = default)
     {
-        CurrentRoute = Routing.PatternUri(patternId);
-        return Shell.Current.GoToAsync(CurrentRoute);
+        CurrentRoute = Routing.Pattern;
+        return Shell.Current.GoToAsync(Routing.PatternUri(patternId));
     }
 
     public Task NavigateToFavoritesAsync(CancellationToken cancellationToken = default)

@@ -5,17 +5,18 @@ using Microsoft.Maui.Controls;
 namespace DesignPatterns.App;
 
 /// <summary>Детальная карточка паттерна: текст + векторная UML-диаграмма + код.</summary>
+[QueryProperty(nameof(Id), "id")]
 public partial class PatternDetailPage : ContentPage
 {
     private readonly PatternDetailViewModel _viewModel;
-    private readonly IDiagramRenderer _renderer;
+    private bool _loaded;
+    private string _patternId = string.Empty;
 
     public PatternDetailPage(PatternDetailViewModel viewModel, IDiagramRenderer renderer)
     {
         InitializeComponent();
         _viewModel = viewModel;
-        _renderer = renderer;
-        BindingContext = _viewModel;
+        BindingContext = viewModel;
 
         DiagramCanvas.Drawable = new Controls.DiagramDrawable(renderer, () => _viewModel.Diagram);
         _viewModel.PropertyChanged += (_, e) =>
@@ -23,6 +24,20 @@ public partial class PatternDetailPage : ContentPage
             if (e.PropertyName == nameof(_viewModel.Diagram))
                 DiagramCanvas.Invalidate();
         };
+    }
+
+    /// <summary>Shell передаёт id паттерна через query-параметр «id».</summary>
+    public string Id
+    {
+        get => _patternId;
+        set
+        {
+            if (string.Equals(_patternId, value, StringComparison.Ordinal) && _loaded)
+                return;
+
+            _patternId = value;
+            _loaded = false;
+        }
     }
 
     protected override async void OnAppearing()
@@ -33,15 +48,5 @@ public partial class PatternDetailPage : ContentPage
             _loaded = true;
             await _viewModel.LoadAsync(_patternId);
         }
-    }
-
-    private bool _loaded;
-    private string _patternId = string.Empty;
-
-    /// <summary>Заполняется ShellNavigationService перед переходом.</summary>
-    public void SetPatternId(string patternId)
-    {
-        _patternId = patternId;
-        _loaded = false;
     }
 }
