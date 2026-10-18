@@ -1,4 +1,5 @@
 using DesignPatterns.Core.Abstractions;
+using DesignPatterns.Core.Models.Diagrams;
 
 namespace DesignPatterns.Core.Models.Catalog;
 

@@ -72,13 +72,13 @@ public class MainPageViewModelTests
 
         // Двойной переключатель возвращает к RU — проверяем, что оба вызова прошли без исключения
         // и язык реально менялся (см. LocalizationServiceTests).
-        vm.ToggleLanguageCommand.CanExecute(null).Should().BeTrue();
+        vm.ToggleLanguageCommand.CanExecute(null).Should().Be(true);
     }
 
     private static async Task WaitAsync(Func<bool> condition)
     {
         for (var i = 0; i < 100 && !condition(); i++)
             await Task.Delay(10);
-        condition.Should().BeTrue("search is dispatched asynchronously from OnSearchQueryChanged");
+        condition().Should().BeTrue("search is dispatched asynchronously from OnSearchQueryChanged");
     }
 }

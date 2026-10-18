@@ -17,5 +17,5 @@ public static class CoreServiceCollectionExtensions
         return services;
     }
 
-    private sealed class DefaultCoreAppMarker;
+    private sealed class DefaultCoreAppMarker : ICoreApp;
 }
