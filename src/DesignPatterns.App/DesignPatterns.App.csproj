@@ -25,5 +25,16 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.9" />
   </ItemGroup>
 
+  <!-- Локализация: RU — нейтральная (по умолчанию), EN — сателлит. -->
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\L10n\AppResources.resx">
+      <Generator>MSBuild:Compile</Generator>
+      <LogicalName>DesignPatterns.App.Resources.L10n.AppResources.resources</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Resources\L10n\AppResources.en.resx">
+      <WithCulture>en</WithCulture>
+      <LogicalName>DesignPatterns.App.Resources.L10n.AppResources.en.resources</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 
 </Project>

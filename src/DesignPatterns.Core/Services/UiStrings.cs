@@ -8,17 +8,7 @@ namespace DesignPatterns.Core.Services;
 /// </summary>
 public static class UiStrings
 {
-    public static IReadOnlyDictionary<AppLanguage, IReadOnlyDictionary<string, string>> All { get; } =
-        new Dictionary<AppLanguage, IReadOnlyDictionary<string, string>>
-        {
-            [AppLanguage.Russian] = Ru!,
-            [AppLanguage.English] = En!,
-        };
-
-    /// <summary>Создаёт сервис локализации со строками UI (RU по умолчанию).</summary>
-    public static ILocalizationService CreateDefaultService(AppLanguage initial = AppLanguage.Russian)
-        => new DictionaryLocalizationService(All, initial);
-
+    // ВАЖНО: Ru/En объявлены ДО All — статические инициализаторы выполняются в порядке объявления.
     private static readonly IReadOnlyDictionary<string, string> Ru = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["MainTitle"] = "Паттерны проектирования",
@@ -54,4 +44,15 @@ public static class UiStrings
         ["StructuralCategory"] = "Structural Patterns",
         ["BehavioralCategory"] = "Behavioral Patterns",
     };
+
+    public static IReadOnlyDictionary<AppLanguage, IReadOnlyDictionary<string, string>> All { get; } =
+        new Dictionary<AppLanguage, IReadOnlyDictionary<string, string>>
+        {
+            [AppLanguage.Russian] = Ru,
+            [AppLanguage.English] = En,
+        };
+
+    /// <summary>Создаёт сервис локализации со строками UI (RU по умолчанию).</summary>
+    public static ILocalizationService CreateDefaultService(AppLanguage initial = AppLanguage.Russian)
+        => new DictionaryLocalizationService(All, initial);
 }
