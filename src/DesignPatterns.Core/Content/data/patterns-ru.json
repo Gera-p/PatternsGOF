@@ -1107,6 +1107,485 @@
             "language": "csharp",
             "source": "public interface ISortStrategy\n{\n    int[] Sort(int[] data);\n}\n\npublic sealed class AscendingStrategy : ISortStrategy\n{\n    public int[] Sort(int[] data) => [.. data.OrderBy(x => x)];\n}\n\npublic sealed class DescendingStrategy : ISortStrategy\n{\n    public int[] Sort(int[] data) => [.. data.OrderByDescending(x => x)];\n}\n\npublic sealed class Sorter(ISortStrategy strategy)\n{\n    public int[] Run(int[] data) => strategy.Sort(data);\n}\n\npublic static class Demo\n{\n    public static int[] Run(int[] data, bool desc)\n    {\n        ISortStrategy strategy = desc ? new DescendingStrategy() : new AscendingStrategy();\n        return new Sorter(strategy).Run(data);\n    }\n}\n\n// Demo.Run([3,1,2], desc: false) -> [1,2,3]"
           }
+        },
+        {
+          "id": "chain-of-responsibility",
+          "diagram": {
+            "title": "Chain of Responsibility",
+            "nodes": [
+              {
+                "id": "handler",
+                "name": "SupportHandler",
+                "kind": "abstract",
+                "members": [
+                  "next: SupportHandler",
+                  "Handle(severity): string"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "first",
+                "name": "FirstLineSupport",
+                "kind": "class",
+                "members": [],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "second",
+                "name": "SecondLineSupport",
+                "kind": "class",
+                "members": [],
+                "col": 1,
+                "row": 1
+              },
+              {
+                "id": "manager",
+                "name": "ManagerSupport",
+                "kind": "class",
+                "members": [],
+                "col": 2,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "first",
+                "to": "handler",
+                "kind": "inheritance"
+              },
+              {
+                "from": "second",
+                "to": "handler",
+                "kind": "inheritance"
+              },
+              {
+                "from": "manager",
+                "to": "handler",
+                "kind": "inheritance"
+              },
+              {
+                "from": "handler",
+                "to": "handler",
+                "kind": "association",
+                "label": "next"
+              }
+            ]
+          },
+          "code": {
+            "language": "csharp",
+            "source": "using System;\n\npublic abstract class SupportHandler\n{\n    private SupportHandler next;\n\n    public SupportHandler SetNext(SupportHandler nxt) { next = nxt; return nxt; }\n\n    public string Handle(int severity)\n    {\n        if (CanHandle(severity)) return Resolve(severity);\n        if (next != null) return next.Handle(severity);\n        return \"none\";\n    }\n\n    protected abstract bool CanHandle(int severity);\n    protected abstract string Resolve(int severity);\n}\n\npublic sealed class FirstLineSupport : SupportHandler\n{\n    protected override bool CanHandle(int severity) => severity <= 1;\n    protected override string Resolve(int s) => \"first-line\";\n}\n\npublic sealed class SecondLineSupport : SupportHandler\n{\n    protected override bool CanHandle(int severity) => severity <= 2;\n    protected override string Resolve(int s) => \"second-line\";\n}\n\npublic sealed class ManagerSupport : SupportHandler\n{\n    protected override bool CanHandle(int severity) => severity <= 3;\n    protected override string Resolve(int s) => \"manager\";\n}\n\npublic static class Demo\n{\n    public static string Run(int severity)\n    {\n        var first = new FirstLineSupport();\n        var second = new SecondLineSupport();\n        var manager = new ManagerSupport();\n        first.SetNext(second).SetNext(manager);\n        return first.Handle(severity);\n    }\n}",
+            "demoEntry": "Demo.Run",
+            "title": "Тикеты поддержки"
+          },
+          "name": "Цепочка обязанностей",
+          "intent": "Позволяет передавать запросы по цепочке потенциальных обработчиков, пока один из них не обработает запрос.",
+          "problem": "Запрос должен обработать один из нескольких получателей, причём заранее неизвестно, какой именно. Привязывать отправителя ко всем обработчикам — хрупкое решение.",
+          "solution": "Превратить обработчиков в цепочку самостоятельных объектов. Каждый обработчик решает: обработать запрос самому или передать его следующему звену цепи.",
+          "applicability": [
+            "Несколько объектов могут обработать запрос, порядок важен",
+            "Классы обработчиков должны быть независимы и переиспользуемы",
+            "Набор обработчиков может меняться во время выполнения"
+          ],
+          "pros": [
+            "Слабая связанность: отправитель не знает конкретного обработчика",
+            "Единый интерфейс обработки; цепочку легко перестроить",
+            "Открыто/закрыто: новые обработчики без изменения существующих"
+          ],
+          "cons": [
+            "Запрос может остаться необработанным",
+            "Отладка трассировки по цепочке затруднена"
+          ]
+        },
+        {
+          "id": "command",
+          "diagram": {
+            "title": "Command",
+            "nodes": [
+              {
+                "id": "cmd",
+                "name": "ICommand",
+                "kind": "interface",
+                "members": [
+                  "Execute()",
+                  "Undo()"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "on",
+                "name": "TurnOnCommand",
+                "kind": "class",
+                "members": [
+                  "bulb: LightBulb"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "off",
+                "name": "TurnOffCommand",
+                "kind": "class",
+                "members": [
+                  "bulb: LightBulb"
+                ],
+                "col": 2,
+                "row": 1
+              },
+              {
+                "id": "invoker",
+                "name": "RemoteControl",
+                "kind": "class",
+                "members": [
+                  "history: Stack<ICommand>",
+                  "Press(cmd)",
+                  "ReleaseUndo()"
+                ],
+                "col": 1,
+                "row": 2
+              },
+              {
+                "id": "bulb",
+                "name": "LightBulb",
+                "kind": "class",
+                "members": [
+                  "On: bool",
+                  "TurnOn()",
+                  "TurnOff()"
+                ],
+                "col": 0,
+                "row": 2
+              }
+            ],
+            "links": [
+              {
+                "from": "on",
+                "to": "cmd",
+                "kind": "realization"
+              },
+              {
+                "from": "off",
+                "to": "cmd",
+                "kind": "realization"
+              },
+              {
+                "from": "invoker",
+                "to": "cmd",
+                "kind": "association",
+                "label": "executes"
+              },
+              {
+                "from": "on",
+                "to": "bulb",
+                "kind": "dependency"
+              },
+              {
+                "from": "off",
+                "to": "bulb",
+                "kind": "dependency"
+              }
+            ]
+          },
+          "code": {
+            "language": "csharp",
+            "source": "using System;\nusing System.Collections.Generic;\n\npublic interface ICommand\n{\n    void Execute();\n    void Undo();\n}\n\npublic sealed class LightBulb\n{\n    public bool On { get; private set; }\n    public void TurnOn() => On = true;\n    public void TurnOff() => On = false;\n}\n\npublic sealed class TurnOnCommand : ICommand\n{\n    private readonly LightBulb bulb;\n    public TurnOnCommand(LightBulb b) { bulb = b; }\n    public void Execute() => bulb.TurnOn();\n    public void Undo() => bulb.TurnOff();\n}\n\npublic sealed class TurnOffCommand : ICommand\n{\n    private readonly LightBulb bulb;\n    public TurnOffCommand(LightBulb b) { bulb = b; }\n    public void Execute() => bulb.TurnOff();\n    public void Undo() => bulb.TurnOn();\n}\n\npublic sealed class RemoteControl\n{\n    private readonly Stack<ICommand> history = new Stack<ICommand>();\n    public void Press(ICommand command)\n    {\n        command.Execute();\n        history.Push(command);\n    }\n    public void ReleaseUndo()\n    {\n        if (history.Count > 0) history.Pop().Undo();\n    }\n}\n\npublic static class Demo\n{\n    public static string Run(string script)\n    {\n        var bulb = new LightBulb();\n        var remote = new RemoteControl();\n        foreach (var step in script.Split(','))\n        {\n            if (step == \"on\") remote.Press(new TurnOnCommand(bulb));\n            else if (step == \"off\") remote.Press(new TurnOffCommand(bulb));\n            else if (step == \"undo\") remote.ReleaseUndo();\n        }\n        return bulb.On ? \"on\" : \"off\";\n    }\n}",
+            "demoEntry": "Demo.Run",
+            "title": "Пульт со светом"
+          },
+          "name": "Команда",
+          "intent": "Превращает запросы в объекты, позволяя передавать их как аргументы, ставить запросы в очередь, логировать и отменять операции.",
+          "problem": "Нужно параметризовать объекты действиями, ставить действия в очередь или поддерживать отмену (Ctrl+Z). Встроить такую логику в классы-отправители невозможно аккуратно.",
+          "solution": "Каждое действие — отдельный объект-команда с методами Execute/Undo. Отправитель вызывает команду, не зная получателя; история команд даёт отмену.",
+          "applicability": [
+            "Действия нужно логировать, ставить в очередь или выполнять отложенно",
+            "Требуется поддержка отмены операций",
+            "Конфигурируемые кнопки/меню/горячие клавиши"
+          ],
+          "pros": [
+            "Чёткое разделение отправителя и получателя",
+            "Легко добавлять новые команды и макросы из существующих",
+            "Отмена/повтор реализуются естественно"
+          ],
+          "cons": [
+            "Рост числа классов для простых действий",
+            "Дублирование кода при схожих командах"
+          ]
+        },
+        {
+          "id": "iterator",
+          "diagram": {
+            "title": "Iterator",
+            "nodes": [
+              {
+                "id": "iter",
+                "name": "IIterator<T>",
+                "kind": "interface",
+                "members": [
+                  "HasNext(): bool",
+                  "Next(): T"
+                ],
+                "col": 0,
+                "row": 0
+              },
+              {
+                "id": "agg",
+                "name": "IAggregate<T>",
+                "kind": "interface",
+                "members": [
+                  "CreateIterator(): IIterator<T>"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "news",
+                "name": "NewsFeed",
+                "kind": "class",
+                "members": [
+                  "items: List<string>",
+                  "CreateIterator()"
+                ],
+                "col": 1,
+                "row": 1
+              },
+              {
+                "id": "it",
+                "name": "NewsIterator",
+                "kind": "class",
+                "members": [
+                  "index: int",
+                  "HasNext()",
+                  "Next()"
+                ],
+                "col": 0,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "it",
+                "to": "iter",
+                "kind": "realization"
+              },
+              {
+                "from": "news",
+                "to": "agg",
+                "kind": "realization"
+              },
+              {
+                "from": "news",
+                "to": "it",
+                "kind": "dependency",
+                "label": "creates"
+              }
+            ]
+          },
+          "code": {
+            "language": "csharp",
+            "source": "using System.Collections;\nusing System.Collections.Generic;\n\npublic interface IIterator<T>\n{\n    bool HasNext();\n    T Next();\n}\n\npublic interface IAggregate<T>\n{\n    IIterator<T> CreateIterator();\n}\n\npublic sealed class NewsFeed : IAggregate<string>\n{\n    private readonly List<string> items = new List<string>();\n    public void Add(string item) => items.Add(item);\n\n    public IIterator<string> CreateIterator() => new NewsIterator(items);\n\n    private sealed class NewsIterator : IIterator<string>\n    {\n        private readonly IList<string> data;\n        private int index = -1;\n        public NewsIterator(IList<string> d) { data = d; }\n        public bool HasNext() => index + 1 < data.Count;\n        public string Next()\n        {\n            index++;\n            return data[index];\n        }\n    }\n}\n\npublic static class Demo\n{\n    public static string Run(string joined)\n    {\n        var feed = new NewsFeed();\n        foreach (var s in joined.Split('|')) feed.Add(s);\n        var it = feed.CreateIterator();\n        var result = new List<string>();\n        while (it.HasNext()) result.Add(it.Next());\n        return string.Join(\",\", result);\n    }\n}",
+            "demoEntry": "Demo.Run",
+            "title": "Лента новостей"
+          },
+          "name": "Итератор",
+          "intent": "Даёт способ последовательно обходить сложную коллекцию, не раскрывая её внутреннее устройство.",
+          "problem": "У коллекции может быть несколько способов обхода (по порядку, только прочитанные, рекурсивно по дереву). Встраивать каждый обход в саму коллекцию — нарушать SRP и плодить дублирование.",
+          "solution": "Вынести обход в отдельный объект-итератор с интерфейсом HasNext/Next. Коллекция реализует метод создания итератора и скрывает своё хранилище.",
+          "applicability": [
+            "Сложные структуры данных, обход которых не тривиален",
+            "Нужно несколько вариантов обхода одной коллекции",
+            "Желание скрыть представление коллекции от клиента"
+          ],
+          "pros": [
+            "Единообразный обход разных коллекций",
+            "Инкапсуляция: клиент не видит хранилище",
+            "Несколько итераторов одновременно над одной коллекцией"
+          ],
+          "cons": [
+            "Для простых списков — оверинжиниринг",
+            "Итератору сложно работать с изменяемой коллекцией"
+          ]
+        },
+        {
+          "id": "mediator",
+          "diagram": {
+            "title": "Mediator",
+            "nodes": [
+              {
+                "id": "med",
+                "name": "ChatRoom",
+                "kind": "class",
+                "members": [
+                  "ShowMessage(from,to,msg)"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "a",
+                "name": "User: Ann",
+                "kind": "class",
+                "members": [
+                  "Send(to,msg)",
+                  "Receive(msg)"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "b",
+                "name": "User: Bob",
+                "kind": "class",
+                "members": [],
+                "col": 1,
+                "row": 1
+              },
+              {
+                "id": "c",
+                "name": "User: Cat",
+                "kind": "class",
+                "members": [],
+                "col": 2,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "a",
+                "to": "med",
+                "kind": "dependency",
+                "label": "sends via"
+              },
+              {
+                "from": "b",
+                "to": "med",
+                "kind": "dependency"
+              },
+              {
+                "from": "c",
+                "to": "med",
+                "kind": "dependency"
+              }
+            ]
+          },
+          "code": {
+            "language": "csharp",
+            "source": "using System.Collections.Generic;\n\npublic abstract class ChatRoom\n{\n    public static void ShowMessage(User from, User to, string message)\n    {\n        // «центр» логирует маршрутизацию; пользователи не знают друг друга напрямую\n        to.Receive(from.Name + \": \" + message);\n    }\n}\n\npublic sealed class User\n{\n    public User(string name) { Name = name; Received.Clear(); }\n    public string Name { get; }\n    public List<string> Received { get; } = new List<string>();\n    public void Send(User to, string message) => ChatRoom.ShowMessage(this, to, message);\n    public void Receive(string message) => Received.Add(message);\n}\n\npublic static class Demo\n{\n    public static string Run(string script)\n    {\n        var ann = new User(\"Ann\");\n        var bob = new User(\"Bob\");\n        var cat = new User(\"Cat\");\n        foreach (var step in script.Split(','))\n        {\n            var parts = step.Split('>');\n            var msg = parts[1];\n            if (parts[0] == \"A\") ann.Send(bob, msg);\n            else if (parts[0] == \"B\") bob.Send(cat, msg);\n            else if (parts[0] == \"C\") cat.Send(ann, msg);\n        }\n        return ann.Received.Count + \"-\" + bob.Received.Count + \"-\" + cat.Received.Count;\n    }\n}",
+            "demoEntry": "Demo.Run",
+            "title": "Чат-комната"
+          },
+          "name": "Посредник",
+          "intent": "Ограничивает прямые связи между множеством классов, заставляя их общаться через единый посредник.",
+          "problem": "20 классов общаются друг с другом напрямую — это 400 связей. Любое изменение одного класса затрагивает десятки других, переиспользовать классы по отдельности невозможно.",
+          "solution": "Вынести групповое взаимодействие в отдельный объект-посредник. Классы общаются только с ним, а посредник знает, кто и на что должен реагировать.",
+          "applicability": [
+            "Много классов хаотично ссылаются друг на друга",
+            "Класс трудно переиспользовать из-за переплетённых связей",
+            "Нужно варьировать поведение взаимодействий без правок классов"
+          ],
+          "pros": [
+            "Распределённая логика собирается в одном месте",
+            "Коллеги развязаны, легче переиспользовать",
+            "Легко добавлять новых участников"
+          ],
+          "cons": [
+            "Посредник может стать «богом»",
+            "Централизация усложняет понимание потока событий"
+          ]
+        },
+        {
+          "id": "observer",
+          "diagram": {
+            "title": "Observer",
+            "nodes": [
+              {
+                "id": "subj",
+                "name": "EventManager",
+                "kind": "class",
+                "members": [
+                  "listeners",
+                  "Subscribe()",
+                  "Notify()"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "obs",
+                "name": "IObserver",
+                "kind": "interface",
+                "members": [
+                  "Update(type,data)"
+                ],
+                "col": 0,
+                "row": 0
+              },
+              {
+                "id": "email",
+                "name": "EmailAlert",
+                "kind": "class",
+                "members": [],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "sms",
+                "name": "SmsAlert",
+                "kind": "class",
+                "members": [],
+                "col": 1,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "email",
+                "to": "obs",
+                "kind": "realization"
+              },
+              {
+                "from": "sms",
+                "to": "obs",
+                "kind": "realization"
+              },
+              {
+                "from": "subj",
+                "to": "obs",
+                "kind": "association",
+                "label": "notifies"
+              },
+              {
+                "from": "subj",
+                "to": "subj",
+                "kind": "dependency",
+                "label": "stores list"
+              }
+            ]
+          },
+          "code": {
+            "language": "csharp",
+            "source": "using System;\nusing System.Collections.Generic;\n\npublic interface IObserver\n{\n    void Update(string eventType, string data);\n}\n\npublic sealed class EventManager\n{\n    private readonly Dictionary<string, List<IObserver>> listeners =\n        new Dictionary<string, List<IObserver>>();\n\n    public void Subscribe(string type, IObserver observer)\n    {\n        if (!listeners.TryGetValue(type, out var list))\n        {\n            list = new List<IObserver>();\n            listeners[type] = list;\n        }\n        list.Add(observer);\n    }\n\n    public void Unsubscribe(string type, IObserver observer)\n    {\n        if (listeners.TryGetValue(type, out var list)) list.Remove(observer);\n    }\n\n    public void Notify(string type, string data)\n    {\n        if (listeners.TryGetValue(type, out var list))\n            foreach (var o in list.ToArray()) o.Update(type, data);\n    }\n}\n\npublic sealed class EmailAlert : IObserver\n{\n    public List<string> Inbox { get; } = new List<string>();\n    public void Update(string eventType, string data) => Inbox.Add(\"email:\" + data);\n}\n\npublic sealed class SmsAlert : IObserver\n{\n    public List<string> Phone { get; } = new List<string>();\n    public void Update(string eventType, string data) => Phone.Add(\"sms:\" + data);\n}\n\npublic static class Demo\n{\n    public static string Run(bool unsubscribeBeforeNotify)\n    {\n        var manager = new EventManager();\n        var email = new EmailAlert();\n        var sms = new SmsAlert();\n        manager.Subscribe(\"user-registration\", email);\n        manager.Subscribe(\"user-registration\", sms);\n        if (unsubscribeBeforeNotify) manager.Unsubscribe(\"user-registration\", sms);\n        manager.Notify(\"user-registration\", \"Anna\");\n        return email.Inbox.Count + \"-\" + sms.Phone.Count;\n    }\n}",
+            "demoEntry": "Demo.Run",
+            "title": "Уведомления о регистрации"
+          },
+          "name": "Наблюдатель",
+          "intent": "Описывает механизм подписки, который позволяет одним объектам следить за событиями в других и автоматически реагировать.",
+          "problem": "При изменении состояния одного объекта нужно уведомить множество зависимых, не создавая жёсткой связи между ними (например, обновить UI, отправить уведомления, записать лог).",
+          "solution": "Интерфейс Наблюдателя с методом Update; субъект хранит список подписчиков и рассылает события. Подписка/отписка выполняются в любой момент.",
+          "applicability": [
+            "Один объект должен уведомлять другие без знания их конкретных типов",
+            "Нужно подписываться и отписываться динамически",
+            "Изменение должно каскадно распространяться по графу объектов"
+          ],
+          "pros": [
+            "Субъект и наблюдатели слабо связаны",
+            "Управление событиями «из коробки», автоматическое обновление"
+          ],
+          "cons": [
+            "Уведомления могут быть непредсказуемы по порядку",
+            "Риск утечек памяти при незакрытых подписках"
+          ]
         }
       ]
     }
