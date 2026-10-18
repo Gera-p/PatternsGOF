@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DesignPatterns.Core.ViewModels;assembly=DesignPatterns.Core"
+             xmlns:models="clr-namespace:DesignPatterns.Core.Models.Catalog;assembly=DesignPatterns.Core"
+             x:Class="DesignPatterns.App.Pages.FavoritesPage"
+             Title="Избранное"
+             x:DataType="vm:FavoritesViewModel">
+
+    <CollectionView ItemsSource="{Binding Favorites}"
+                    AutomationId="FavoritesList">
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="models:PatternInfo">
+                <VerticalStackLayout Padding="16" Spacing="4">
+                    <Label Text="{Binding Name.Ru}" FontSize="17" FontAttributes="Bold" />
+                    <Label Text="{Binding Intent.Ru}" TextColor="Gray" LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+        <CollectionView.EmptyView>
+            <Label Text="Список избранного пуст"
+                   HorizontalOptions="Center"
+                   Margin="20"
+                   AutomationId="FavoritesEmpty" />
+        </CollectionView.EmptyView>
+    </CollectionView>
+</ContentPage>

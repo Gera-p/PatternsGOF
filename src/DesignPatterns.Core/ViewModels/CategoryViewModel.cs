@@ -1,8 +1,6 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DesignPatterns.Core.Abstractions;
-using DesignPatterns.Core.Models.Catalog;
 
 namespace DesignPatterns.Core.ViewModels;
 
@@ -11,57 +9,49 @@ public partial class CategoryViewModel : ObservableObject
 {
     private readonly IPatternRepository _repository;
     private readonly INavigationService _navigation;
-    private readonly ILocalizationService? _localization;
+    private readonly ILocalizationService _localization;
 
     public CategoryViewModel(
         IPatternRepository repository,
         INavigationService navigation,
-        ILocalizationService? localization = null)
+        ILocalizationService localization)
     {
         _repository = repository;
         _navigation = navigation;
         _localization = localization;
-        if (_localization is not null)
-            _localization.LanguageChanged += (_, _) => RefreshLocalizedTexts();
+        _localization.LanguageChanged += (_, _) => OnLanguageChanged();
     }
 
-    /// <summary>Паттерны категории (модели карточек).</summary>
-    public ObservableCollection<PatternInfo> Patterns { get; } = [];
+    /// <summary>Карточки паттернов категории (локализованы).</summary>
+    public IReadOnlyList<PatternCardItem> Patterns { get; private set; } = [];
 
-    [ObservableProperty]
-    private LocString? _categoryName;
+    public string Title { get; private set; } = string.Empty;
+
+    private string _categoryId = string.Empty;
 
     [RelayCommand]
     public async Task LoadAsync(string categoryId, CancellationToken cancellationToken = default)
     {
-        var categories = await _repository.GetCategoriesAsync(cancellationToken);
-        var category = categories.FirstOrDefault(c =>
-            string.Equals(c.Id, categoryId, StringComparison.OrdinalIgnoreCase));
-
-        Patterns.Clear();
-        if (category is null)
-            return;
-
-        CategoryName = category.Name;
-        foreach (var p in category.Patterns)
-            Patterns.Add(p);
+        _categoryId = categoryId;
+        await RebuildAsync(cancellationToken);
     }
 
-    /// <summary>Локализует строку под текущий язык UI (RU по умолчанию).</summary>
-    public string L(LocString s)
-        => s.Get(_localization?.CurrentLanguage ?? AppLanguage.Russian);
+    private void OnLanguageChanged() => _ = RebuildAsync(CancellationToken.None);
 
-    private void RefreshLocalizedTexts()
+    private async Task RebuildAsync(CancellationToken cancellationToken)
     {
-        OnPropertyChanged(nameof(CategoryName));
-        foreach (var p in Patterns.ToList())
-        {
-            // PatternInfo — record, биндинги на вложенные LocString не «шумят» сами:
-            // эмулируем обновление через PropertyChanged коллекции.
-            var index = Patterns.IndexOf(p);
-            if (index >= 0)
-                OnPropertyChanged($@"Patterns[{index}].Name");
-        }
+        var categories = await _repository.GetCategoriesAsync(cancellationToken);
+        var category = categories.FirstOrDefault(c =>
+            string.Equals(c.Id, _categoryId, StringComparison.OrdinalIgnoreCase));
+
+        var lang = _localization.CurrentLanguage;
+        Title = category?.Name.Get(lang) ?? string.Empty;
+        Patterns = (category?.Patterns ?? [])
+            .Select(p => new PatternCardItem(p.Id, p.Name.Get(lang), p.Intent.Get(lang)))
+            .ToList();
+
+        OnPropertyChanged(nameof(Patterns));
+        OnPropertyChanged(nameof(Title));
     }
 
     [RelayCommand]

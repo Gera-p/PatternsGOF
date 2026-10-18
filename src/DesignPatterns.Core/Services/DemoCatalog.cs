@@ -5,7 +5,7 @@ using DesignPatterns.Core.Models.Diagrams;
 namespace DesignPatterns.Core.Services;
 
 /// <summary>
-/// Демо-каталог для Этапа 1: три категории и по одному паттерну-заглушке.
+/// Демо-каталог для Этапов 1–2: три категории и по одному паттерну-заглушке.
 /// Полный контент GoF (23+) появится на Этапе 4.
 /// </summary>
 public static class DemoCatalog
@@ -36,10 +36,10 @@ public static class DemoCatalog
             id,
             categoryId,
             new LocString(ru, en),
-            new LocString("Демо-назначение (Этап 1).", "Demo intent (Stage 1)."),
-            new LocString("Демо-проблема (Этап 1).", "Demo problem (Stage 1)."),
-            new LocString("Демо-решение (Этап 1).", "Demo solution (Stage 1)."),
-            new LocString("Демо-применимость (Этап 1).", "Demo applicability (Stage 1)."),
+            new LocString("Демо-назначение (Этап 2).", "Demo intent (Stage 2)."),
+            new LocString("Демо-проблема (Этап 2).", "Demo problem (Stage 2)."),
+            new LocString("Демо-решение (Этап 2).", "Demo solution (Stage 2)."),
+            new LocString("Демо-применимость (Этап 2).", "Demo applicability (Stage 2)."),
             [new LocString("+ Демо", "+ Demo")],
             [new LocString("- Демо", "- Demo")],
             new UmlDiagram(
