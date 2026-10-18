@@ -13,4 +13,20 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
   </ItemGroup>
 
+  <!--
+    Контент GoF (Этап 4) лежит рядом с кодом и доступен и приложению, и тестам.
+
+    ВАЖНО: файлы названы patterns-ru.json / patterns-en.json (дефис, а не точка).
+    MSBuild эвристика считает файлы вида *.ru.* / *.en.* "культурными" ресурсами
+    и выкладывает их в satellite-сборки (DesignPatterns.Core.ru.resources.dll),
+    из-за чего ContentLoader не находит их в основной DLL.
+    Culture-neutral имена полностью обходят эту логику — EmbeddedResource
+    попадает в основную сборку под предсказуемым логическим именем
+    DesignPatterns.Core.Content.data.patterns-ru.json без каких-либо Target'ов.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="Content/data/patterns-ru.json" />
+    <EmbeddedResource Include="Content/data/patterns-en.json" />
+  </ItemGroup>
+
 </Project>

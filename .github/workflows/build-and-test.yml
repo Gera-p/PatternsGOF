@@ -1,0 +1,140 @@
+name: build-and-test
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+  push:
+    branches: [ main, master, develop ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  # ─────────────────────────────────────────────
+  # 1. Линтинг + unit-тесты с покрытием (fast, Linux)
+  # ─────────────────────────────────────────────
+  lint-and-unit-tests:
+    name: Lint & Unit Tests (coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore (Core + Tests)
+        run: dotnet restore tests/DesignPatterns.UnitTests/DesignPatterns.UnitTests.csproj
+
+      - name: Code style check (dotnet format, warnings as errors)
+        run: |
+          dotnet format --verify-no-changes --severity error \
+            src/DesignPatterns.Core/DesignPatterns.Core.csproj \
+            tests/DesignPatterns.UnitTests/DesignPatterns.UnitTests.csproj
+
+      - name: Unit tests with coverage (cobertura)
+        run: >
+          dotnet test tests/DesignPatterns.UnitTests/DesignPatterns.UnitTests.csproj
+          --configuration Release
+          --nologo
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
+          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
+      - name: Report PR comment with coverage summary
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.3.11
+        with:
+          reports: './TestResults/**/coverage.cobertura.xml'
+          targetdir: 'coveragereport'
+          reporttypes: 'MarkdownSummaryGithub;Badges'
+
+      - name: Publish coverage summary to job page
+        run: cat coveragereport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test results & coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: |
+            TestResults/
+            coveragereport/
+
+  # ─────────────────────────────────────────────
+  # 2. Сборка MAUI Android (headless)
+  # ─────────────────────────────────────────────
+  build-android:
+    name: Build MAUI (Android)
+    runs-on: ubuntu-latest
+    needs: lint-and-unit-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui-android --source https://api.nuget.org/v3/index.json
+
+      - name: Restore Android
+        run: dotnet restore src/DesignPatterns.App/DesignPatterns.App.csproj -f net9.0-android
+
+      - name: Build APK (net9.0-android, no code signing in CI)
+        run: >
+          dotnet publish src/DesignPatterns.App/DesignPatterns.App.csproj
+          -f net9.0-android
+          -c Release
+          -p:PublishAot=false
+          -o ./publish/android
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: designpatterns-android
+          path: publish/android/*.apk
+
+  # ─────────────────────────────────────────────
+  # 3. Сборка MAUI iOS (headless, без подписи)
+  # ─────────────────────────────────────────────
+  build-ios:
+    name: Build MAUI (iOS headless)
+    runs-on: macos-14
+    needs: lint-and-unit-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Select Xcode 15.4
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui --source https://api.nuget.org/v3/index.json
+
+      - name: Build iOS (frameworks only, unsigned)
+        run: >
+          dotnet build src/DesignPatterns.App/DesignPatterns.App.csproj
+          -f net9.0-ios
+          -c Release
+          -p:CodesignKey=''
+          -p:CodesignProvision=''
+          -p:BuildForSimulator=true
+
+      - name: Upload iOS build log/artifact placeholder
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: designpatterns-ios-build
+          path: src/DesignPatterns.App/bin/Release/net9.0-ios/**

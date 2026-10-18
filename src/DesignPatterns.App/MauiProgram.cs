@@ -3,6 +3,7 @@ using DesignPatterns.App.Pages;
 using DesignPatterns.App.Services;
 using DesignPatterns.Core;
 using DesignPatterns.Core.Abstractions;
+using DesignPatterns.Core.Content;
 using DesignPatterns.Core.Rendering;
 using DesignPatterns.Core.Services;
 using DesignPatterns.Core.ViewModels;
@@ -21,7 +22,14 @@ public static class MauiProgram
         builder.Services.AddDesignPatternsCore();
 
         // ── Контент и данные ───────────────────────────────────────────────────
-        builder.Services.AddSingleton<IPatternRepository>(_ => new InMemoryPatternRepository(DemoCatalog.Build()));
+        // Этап 3: контент из JSON (embedded-ресурсы Core), а не из кодового DemoCatalog.
+        builder.Services.AddSingleton<IPatternRepository>(_ =>
+        {
+            var ru = ContentLoader.LoadEmbeddedRu();
+            var en = ContentLoader.LoadEmbeddedEn();
+            PatternContentValidator.ValidatePair(ru, en);
+            return new InMemoryPatternRepository(ContentMapper.Map(ru, en));
+        });
         builder.Services.AddSingleton<IFavoritesStore, InMemoryFavoritesStore>();
 
         // ── Локализация: resx → ILocalizationService (переключение на лету) ────

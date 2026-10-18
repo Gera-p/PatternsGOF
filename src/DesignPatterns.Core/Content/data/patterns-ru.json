@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "language": "ru",
+  "categories": [
+    {
+      "id": "creational",
+      "name": "Порождающие паттерны",
+      "description": "Абстрагируют процесс создания объектов, отделяя систему от того, как её объекты создаются, композируются и представляются.",
+      "patterns": [
+        {
+          "id": "abstract-factory",
+          "name": "Абстрактная фабрика",
+          "intent": "Предоставляет интерфейс для создания семейств связанных объектов без привязки к конкретным классам.",
+          "problem": "Нужно создавать семейства связанных продуктов (например, кнопки и меню одной темы), гарантируя, что продукты одного семейства не смешиваются с продуктами другого.",
+          "solution": "Объявить абстрактную фабрику с методом на каждый продукт. Конкретные фабрики реализуют её, создавая продукты конкретной темы/варианта. Клиент работает только с интерфейсами.",
+          "applicability": [
+            "Класс системы должен автоматически подбирать конфигурацию продуктов",
+            "Нужно обеспечить совместимость продуктов из одного семейства",
+            "Система должна работать с неизвестными семействами продуктов через общий интерфейс"
+          ],
+          "pros": [
+            "Гарантия совместимости продуктов",
+            "Изоляция кода конкретных классов",
+            "Легко добавлять новые семейства"
+          ],
+          "cons": [
+            "Трудно добавлять новые виды продуктов в существующие фабрики",
+            "Больше интерфейсов и уровней абстракции"
+          ],
+          "diagram": {
+            "title": "Abstract Factory",
+            "nodes": [
+              { "id": "ui-factory", "name": "GUIFactory", "kind": "interface", "members": ["CreateButton(): Button", "CreateMenu(): Menu"], "col": 1, "row": 0 },
+              { "id": "dark-factory", "name": "DarkThemeFactory", "kind": "class", "members": [], "col": 0, "row": 1 },
+              { "id": "light-factory", "name": "LightThemeFactory", "kind": "class", "members": [], "col": 2, "row": 1 }
+            ],
+            "links": [
+              { "from": "dark-factory", "to": "ui-factory", "kind": "realization" },
+              { "from": "light-factory", "to": "ui-factory", "kind": "realization" }
+            ]
+          },
+          "code": {
+            "title": "Темы GUI",
+            "language": "csharp",
+            "source": "public interface IButton { string Render(); }\npublic interface IMenu { string Open(); }\n\npublic interface IUIFactory\n{\n    IButton CreateButton();\n    IMenu CreateMenu();\n}\n\n// Семейство «тёмная тема»\npublic sealed class DarkButton : IButton { public string Render() => \"[dark button]\"; }\npublic sealed class DarkMenu : IMenu { public string Open() => \"{dark menu}\"; }\npublic sealed class DarkFactory : IUIFactory\n{\n    public IButton CreateButton() => new DarkButton();\n    public IMenu CreateMenu() => new DarkMenu();\n}\n\n// Семейство «светлая тема»\npublic sealed class LightButton : IButton { public string Render() => \"[light button]\"; }\npublic sealed class LightMenu : IMenu { public string Open() => \"{light menu}\"; }\npublic sealed class LightFactory : IUIFactory\n{\n    public IButton CreateButton() => new LightButton();\n    public IMenu CreateMenu() => new LightMenu();\n}\n\npublic static class Demo\n{\n    public static string Run(IUIFactory factory)\n    {\n        var button = factory.CreateButton();\n        var menu = factory.CreateMenu();\n        return $\"{button.Render()} {menu.Open()}\";\n    }\n}\n\n// Console.WriteLine(Demo.Run(new DarkFactory())); // [dark button] {dark menu}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "structural",
+      "name": "Структурные паттерны",
+      "description": "Компонуют объекты и классы в крупные структуры, сохраняя гибкость и эффективность.",
+      "patterns": [
+        {
+          "id": "adapter",
+          "name": "Адаптер",
+          "intent": "Приспосабливает объект с одним интерфейсом так, чтобы его можно было использовать с другим, ожидаемым интерфейсом.",
+          "problem": "Существует полезный класс, но его интерфейс не совпадает с интерфейсом клиента. Переписывать клиент или класс нельзя.",
+          "solution": "Создать класс-адаптер, которыйimplements целевой интерфейс клиента внутри и транслирует вызовы в методы адаптируемого объекта (через композицию).",
+          "applicability": [
+            "Хочется использовать существующий класс, чей интерфейс не подходит",
+            "Нужно переиспользовать несколько не связанных классов в одном интерфейсе",
+            "Работа с legacy/сторонними библиотеками без изменения их кода"
+          ],
+          "pros": [
+            "Клиент отвязан от конкретного API",
+            "Можно оборачивать несколько сервисов одним интерфейсом",
+            "Легко тестировать (подменяемый слой)"
+          ],
+          "cons": [
+            "Лишний уровень опосредования",
+            "Со временем код сложнее читать"
+          ],
+          "diagram": {
+            "title": "Adapter",
+            "nodes": [
+              { "id": "target", "name": "ILogger", "kind": "interface", "members": ["Log(string msg)"], "col": 1, "row": 0 },
+              { "id": "adapter", "name": "LegacyLoggerAdapter", "kind": "class", "members": ["_legacy: OldLogSdk"], "col": 1, "row": 1 },
+              { "id": "adaptee", "name": "OldLogSdk", "kind": "class", "members": ["WriteLine(string, int)"], "col": 2, "row": 2 }
+            ],
+            "links": [
+              { "from": "adapter", "to": "target", "kind": "realization" },
+              { "from": "adapter", "to": "adaptee", "kind": "composition", "label": "uses" }
+            ]
+          },
+          "code": {
+            "title": "Обёртка над legacy SDK",
+            "language": "csharp",
+            "source": "public interface ILogger\n{\n    void Log(string message);\n    IReadOnlyList<string> Entries { get; }\n}\n\n// Старый SDK с неудобным API (его менять нельзя)\npublic sealed class OldLogSdk\n{\n    private readonly List<string> _lines = [];\n    public void WriteLine(string message, int level) => _lines.Add($\"L{level}: {message}\");\n    public IReadOnlyList<string> Dump() => _lines;\n}\n\npublic sealed class LegacyLoggerAdapter : ILogger\n{\n    private readonly OldLogSdk _legacy = new();\n\n    public void Log(string message) => _legacy.WriteLine(message, level: 1);\n\n    public IReadOnlyList<string> Entries => _legacy.Dump();\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        ILogger logger = new LegacyLoggerAdapter();\n        logger.Log(\"hello\");\n        return string.Join(\"|\", logger.Entries); // \"L1: hello\"\n    }\n}\n\n// Console.WriteLine(Demo.Run()); // L1: hello"
+          }
+        }
+      ]
+    },
+    {
+      "id": "behavioral",
+      "name": "Поведенческие паттерны",
+      "description": "Распределяют ответственность и алгоритмы взаимодействия между объектами.",
+      "patterns": [
+        {
+          "id": "strategy",
+          "name": "Стратегия",
+          "intent": "Определяет семейство алгоритмов, инкапсулирует каждый из них и делает их взаимозаменяемыми.",
+          "problem": "Есть несколько вариантов поведения, которые нужно выбирать или менять на лету. Зашивать все варианты if/else в один класс — плохая идея.",
+          "solution": "Выделить каждое поведение в отдельный класс с общим интерфейсом. Контекст хранит ссылку на стратегию и делегирует ей работу.",
+          "applicability": [
+            "Много похожих классов отличаются только поведением",
+            "Нужно скрывать детали алгоритма от клиента",
+            "Алгоритм выбирается динамически (настройки, A/B, платформа)"
+          ],
+          "pros": [
+            "Замена поведения во время выполнения",
+            "Изоляция алгоритмов, простота тестирования",
+            "Открыто/закрыто: новый вариант — новый класс"
+          ],
+          "cons": [
+            "Клиент должен знать о различиях стратегий",
+            "Рост числа мелких классов"
+          ],
+          "diagram": {
+            "title": "Strategy",
+            "nodes": [
+              { "id": "strategy", "name": "ISortStrategy", "kind": "interface", "members": ["Sort(int[] data): int[]"], "col": 1, "row": 0 },
+              { "id": "quick", "name": "QuickSort", "kind": "class", "members": [], "col": 0, "row": 1 },
+              { "id": "bubble", "name": "BubbleSort", "kind": "class", "members": [], "col": 2, "row": 1 },
+              { "id": "context", "name": "Sorter", "kind": "class", "members": ["_strategy: ISortStrategy", "Run(int[]): int[]"], "col": 1, "row": 2 }
+            ],
+            "links": [
+              { "from": "quick", "to": "strategy", "kind": "realization" },
+              { "from": "bubble", "to": "strategy", "kind": "realization" },
+              { "from": "context", "to": "strategy", "kind": "association", "label": "delegates" }
+            ]
+          },
+          "code": {
+            "title": "Сортировки",
+            "language": "csharp",
+            "source": "public interface ISortStrategy\n{\n    int[] Sort(int[] data);\n}\n\npublic sealed class AscendingStrategy : ISortStrategy\n{\n    public int[] Sort(int[] data) => [.. data.OrderBy(x => x)];\n}\n\npublic sealed class DescendingStrategy : ISortStrategy\n{\n    public int[] Sort(int[] data) => [.. data.OrderByDescending(x => x)];\n}\n\npublic sealed class Sorter(ISortStrategy strategy)\n{\n    public int[] Run(int[] data) => strategy.Sort(data);\n}\n\npublic static class Demo\n{\n    public static int[] Run(int[] data, bool desc)\n    {\n        ISortStrategy strategy = desc ? new DescendingStrategy() : new AscendingStrategy();\n        return new Sorter(strategy).Run(data);\n    }\n}\n\n// Demo.Run([3,1,2], desc: false) -> [1,2,3]"
+          }
+        }
+      ]
+    }
+  ]
+}
