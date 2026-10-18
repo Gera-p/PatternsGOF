@@ -11,13 +11,21 @@ public partial class CategoryViewModel : ObservableObject
 {
     private readonly IPatternRepository _repository;
     private readonly INavigationService _navigation;
+    private readonly ILocalizationService? _localization;
 
-    public CategoryViewModel(IPatternRepository repository, INavigationService navigation)
+    public CategoryViewModel(
+        IPatternRepository repository,
+        INavigationService navigation,
+        ILocalizationService? localization = null)
     {
         _repository = repository;
         _navigation = navigation;
+        _localization = localization;
+        if (_localization is not null)
+            _localization.LanguageChanged += (_, _) => RefreshLocalizedTexts();
     }
 
+    /// <summary>Паттерны категории (модели карточек).</summary>
     public ObservableCollection<PatternInfo> Patterns { get; } = [];
 
     [ObservableProperty]
@@ -39,11 +47,28 @@ public partial class CategoryViewModel : ObservableObject
             Patterns.Add(p);
     }
 
+    /// <summary>Локализует строку под текущий язык UI (RU по умолчанию).</summary>
+    public string L(LocString s)
+        => s.Get(_localization?.CurrentLanguage ?? AppLanguage.Russian);
+
+    private void RefreshLocalizedTexts()
+    {
+        OnPropertyChanged(nameof(CategoryName));
+        foreach (var p in Patterns.ToList())
+        {
+            // PatternInfo — record, биндинги на вложенные LocString не «шумят» сами:
+            // эмулируем обновление через PropertyChanged коллекции.
+            var index = Patterns.IndexOf(p);
+            if (index >= 0)
+                OnPropertyChanged($@"Patterns[{index}].Name");
+        }
+    }
+
     [RelayCommand]
-    private Task OpenPatternAsync(string patternId)
+    public Task OpenPatternAsync(string patternId)
         => _navigation.NavigateToPatternAsync(patternId);
 
     [RelayCommand]
-    private Task GoBackAsync()
+    public Task GoBackAsync()
         => _navigation.GoBackAsync();
 }
