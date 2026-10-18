@@ -10,7 +10,7 @@ namespace DesignPatterns.UnitTests.Content;
 
 /// <summary>
 /// Интеграционные тесты контент-пайплайна (Этап 3):
-/// реальные embedded JSON (patterns.ru.json / patterns.en.json) загружаются,
+/// реальные embedded JSON (patterns-ru.json / patterns-en.json) загружаются,
 /// валидируются, маппятся и дают консистентный RU/EN каталог.
 /// </summary>
 public class ContentPipelineTests

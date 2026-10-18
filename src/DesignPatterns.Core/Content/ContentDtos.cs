@@ -4,7 +4,7 @@ namespace DesignPatterns.Core.Content;
 
 /// <summary>
 /// DTO для JSON-контента (Этап 3). Формат хранения: один файл на язык —
-/// Content/data/patterns.ru.json / Content/data/patterns.en.json.
+/// Content/data/patterns-ru.json / Content/data/patterns-en.json.
 /// Схемы RU и EN обязаны быть идентичны (одинаковые id/структура) —
 /// это проверяет <see cref="PatternContentValidator"/>.
 /// </summary>
