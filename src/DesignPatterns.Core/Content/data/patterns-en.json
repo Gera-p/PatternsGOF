@@ -30,19 +30,406 @@
           "diagram": {
             "title": "Abstract Factory",
             "nodes": [
-              { "id": "ui-factory", "name": "GUIFactory", "kind": "interface", "members": ["CreateButton(): Button", "CreateMenu(): Menu"], "col": 1, "row": 0 },
-              { "id": "dark-factory", "name": "DarkThemeFactory", "kind": "class", "members": [], "col": 0, "row": 1 },
-              { "id": "light-factory", "name": "LightThemeFactory", "kind": "class", "members": [], "col": 2, "row": 1 }
+              {
+                "id": "ui-factory",
+                "name": "GUIFactory",
+                "kind": "interface",
+                "members": [
+                  "CreateButton(): Button",
+                  "CreateMenu(): Menu"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "dark-factory",
+                "name": "DarkThemeFactory",
+                "kind": "class",
+                "members": [],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "light-factory",
+                "name": "LightThemeFactory",
+                "kind": "class",
+                "members": [],
+                "col": 2,
+                "row": 1
+              }
             ],
             "links": [
-              { "from": "dark-factory", "to": "ui-factory", "kind": "realization" },
-              { "from": "light-factory", "to": "ui-factory", "kind": "realization" }
+              {
+                "from": "dark-factory",
+                "to": "ui-factory",
+                "kind": "realization"
+              },
+              {
+                "from": "light-factory",
+                "to": "ui-factory",
+                "kind": "realization"
+              }
             ]
           },
           "code": {
             "title": "GUI themes",
             "language": "csharp",
             "source": "public interface IButton { string Render(); }\npublic interface IMenu { string Open(); }\n\npublic interface IUIFactory\n{\n    IButton CreateButton();\n    IMenu CreateMenu();\n}\n\n// Family: dark theme\npublic sealed class DarkButton : IButton { public string Render() => \"[dark button]\"; }\npublic sealed class DarkMenu : IMenu { public string Open() => \"{dark menu}\"; }\npublic sealed class DarkFactory : IUIFactory\n{\n    public IButton CreateButton() => new DarkButton();\n    public IMenu CreateMenu() => new DarkMenu();\n}\n\n// Family: light theme\npublic sealed class LightButton : IButton { public string Render() => \"[light button]\"; }\npublic sealed class LightMenu : IMenu { public string Open() => \"{light menu}\"; }\npublic sealed class LightFactory : IUIFactory\n{\n    public IButton CreateButton() => new LightButton();\n    public IMenu CreateMenu() => new LightMenu();\n}\n\npublic static class Demo\n{\n    public static string Run(IUIFactory factory)\n    {\n        var button = factory.CreateButton();\n        var menu = factory.CreateMenu();\n        return $\"{button.Render()} {menu.Open()}\";\n    }\n}\n\n// Console.WriteLine(Demo.Run(new DarkFactory())); // [dark button] {dark menu}"
+          }
+        },
+        {
+          "id": "builder",
+          "name": "Builder",
+          "intent": "Separates the construction of a complex object from its representation so the same process can create different representations.",
+          "problem": "Object construction balloons with optional parameters and invariant checks, leading to telescoping constructors.",
+          "solution": "Extract assembly into a separate builder with a chain of With... methods and a final Build() that validates invariants.",
+          "applicability": [
+            "Constructing complex objects with options and constraints",
+            "The same assembly process must produce different representations",
+            "An immutable result is required"
+          ],
+          "pros": [
+            "Step-by-step readable construction",
+            "Invariant checks are centralized",
+            "Easy to add new steps"
+          ],
+          "cons": [
+            "More code for simple objects",
+            "The builder often knows product internals"
+          ],
+          "code": {
+            "title": "Combo meal",
+            "language": "csharp",
+            "source": "public sealed class MealBuilder\n{\n    private string _drink = \"water\";\n    private string _side = \"none\";\n    private bool _dessert;\n\n    public MealBuilder WithDrink(string drink) { _drink = drink; return this; }\n    public MealBuilder WithSide(string side) { _side = side; return this; }\n    public MealBuilder WithDessert() { _dessert = true; return this; }\n\n    public string Build() => $\"{_drink}+{_side}{(_dessert ? \"+cake\" : string.Empty)}\";\n}\n\npublic static class Demo\n{\n    public static string Run() =>\n        new MealBuilder().WithDrink(\"juice\").WithSide(\"fries\").WithDessert().Build();\n}\n\n// Demo.Run() -> \"juice+fries+cake\""
+          },
+          "diagram": {
+            "title": "Builder",
+            "nodes": [
+              {
+                "id": "builder",
+                "name": "MealBuilder",
+                "kind": "class",
+                "members": [
+                  "WithDrink(drink): MealBuilder",
+                  "WithSide(side): MealBuilder",
+                  "WithDessert(): MealBuilder",
+                  "Build(): string"
+                ],
+                "col": 0,
+                "row": 0
+              },
+              {
+                "id": "product",
+                "name": "Meal (string)",
+                "kind": "class",
+                "members": [],
+                "col": 1,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "builder",
+                "to": "product",
+                "kind": "dependency",
+                "label": "creates"
+              }
+            ]
+          }
+        },
+        {
+          "id": "prototype",
+          "name": "Prototype",
+          "intent": "Creates new objects by copying an existing prototype instance.",
+          "problem": "Building an object from scratch is expensive or requires private state; similar configurations must be produced quickly.",
+          "solution": "Implement a Clone() method that copies object state (deeply for lists/dictionaries) and produce new instances from the prototype.",
+          "applicability": [
+            "Avoid subclassing just for parameterization",
+            "Copy complex object graphs",
+            "Create objects without knowing their concrete classes"
+          ],
+          "pros": [
+            "Fast creation of configured objects",
+            "No initialization code needed",
+            "Works with unknown classes through an abstraction"
+          ],
+          "cons": [
+            "Deep copy is non-trivial (cycles)",
+            "Hidden references are easy to forget when cloning"
+          ],
+          "code": {
+            "title": "Report templates",
+            "language": "csharp",
+            "source": "public abstract class DocTemplate\n{\n    public string Title { get; set; } = \"\";\n    public List<string> Tags { get; init; } = [];\n    public abstract DocTemplate Clone();\n}\n\npublic sealed class ReportTemplate : DocTemplate\n{\n    public int Year { get; set; }\n    public override DocTemplate Clone() => new ReportTemplate\n    {\n        Title = Title,\n        Year = Year,\n        Tags = [.. Tags], // глубокая копия списка тегов\n    };\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        var original = new ReportTemplate { Title = \"Q1\", Year = 2026 };\n        original.Tags.Add(\"finance\");\n\n        var copy = (ReportTemplate)original.Clone();\n        copy.Title = \"Q2\";\n        copy.Tags.Add(\"draft\");\n\n        // Оригинальные теги не затронуты — значит клонирование глубокое.\n        return $\"{original.Title}:{original.Tags.Count}|{copy.Title}:{copy.Tags.Count}\";\n    }\n}\n\n// Demo.Run() -> \"Q1:1|Q2:2\""
+          },
+          "diagram": {
+            "title": "Prototype",
+            "nodes": [
+              {
+                "id": "proto",
+                "name": "DocTemplate",
+                "kind": "abstract",
+                "members": [
+                  "Title: string",
+                  "Tags: List<string>",
+                  "Clone(): DocTemplate"
+                ],
+                "col": 0,
+                "row": 0
+              },
+              {
+                "id": "concrete",
+                "name": "ReportTemplate",
+                "kind": "class",
+                "members": [
+                  "Year: int",
+                  "Clone(): DocTemplate"
+                ],
+                "col": 0,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "concrete",
+                "to": "proto",
+                "kind": "inheritance"
+              }
+            ]
+          }
+        },
+        {
+          "id": "singleton",
+          "name": "Singleton",
+          "intent": "Guarantees a single instance of a class and provides a global access point to it.",
+          "problem": "Exactly one instance of a resource (config, logger, pool) must exist and be reachable from anywhere.",
+          "solution": "Seal the constructor and expose a static Instance property initialized once in a thread-safe way.",
+          "applicability": [
+            "Exactly one controlled instance",
+            "A single control point over a shared resource"
+          ],
+          "pros": [
+            "Simple global access",
+            "Lazy initialization",
+            "Saves resources on expensive objects"
+          ],
+          "cons": [
+            "Global state complicates testing",
+            "Hidden dependencies between modules",
+            "Violates SRP if it holds behavior"
+          ],
+          "code": {
+            "title": "Application configuration",
+            "language": "csharp",
+            "source": "public sealed class AppConfig\n{\n    public static readonly AppConfig Instance = new();\n    private AppConfig() { Version = \"1.0\"; }\n\n    public string Version { get; set; }\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        var a = AppConfig.Instance;\n        var b = AppConfig.Instance;\n        a.Version = \"2.0\";\n        // Обе ссылки указывают на один экземпляр — изменение видно всем.\n        return ReferenceEquals(a, b) ? b.Version : \"broken\";\n    }\n}\n\n// Demo.Run() -> \"2.0\""
+          },
+          "diagram": {
+            "title": "Singleton",
+            "nodes": [
+              {
+                "id": "singleton",
+                "name": "AppConfig",
+                "kind": "class",
+                "members": [
+                  "-Instance: AppConfig",
+                  "-AppConfig()",
+                  "+Version: string"
+                ],
+                "col": 0,
+                "row": 0
+              }
+            ],
+            "links": []
+          }
+        },
+        {
+          "id": "factory-method",
+          "name": "Factory Method",
+          "intent": "Defines an interface for creating objects but lets subclasses decide which class to instantiate.",
+          "problem": "A class cannot know upfront which product subtypes to create yet wants to centralize common workflow code around them.",
+          "solution": "Extract product creation into a protected abstract factory method; subclasses override it to return the desired product.",
+          "applicability": [
+            "A class does not know product types upfront",
+            "A library wants to offer extension points to users",
+            "Reuse logic across different products"
+          ],
+          "pros": [
+            "Creation encapsulated in one place",
+            "New products are easy to add",
+            "Clients decoupled from concrete classes"
+          ],
+          "cons": [
+            "Each product needs its own subclass",
+            "Deeper hierarchy than plain new"
+          ],
+          "code": {
+            "title": "Log sources",
+            "language": "csharp",
+            "source": "public interface ILogReader\n{\n    string Read();\n}\n\npublic sealed class FileLogReader : ILogReader\n{\n    public string Read() => \"file log\";\n}\n\npublic sealed class MemoryLogReader : ILogReader\n{\n    public string Read() => \"memory log\";\n}\n\npublic abstract class LogSource\n{\n    public string Analyze() => $\"analyzed: {CreateReader().Read()}\";\n\n    protected abstract ILogReader CreateReader();\n}\n\npublic sealed class FileLogSource : LogSource\n{\n    protected override ILogReader CreateReader() => new FileLogReader();\n}\n\npublic sealed class MemoryLogSource : LogSource\n{\n    protected override ILogReader CreateReader() => new MemoryLogReader();\n}\n\npublic static class Demo\n{\n    public static string Run(LogSource source) => source.Analyze();\n}\n\n// Demo.Run(new FileLogSource()) -> \"analyzed: file log\""
+          },
+          "diagram": {
+            "title": "Factory Method",
+            "nodes": [
+              {
+                "id": "creator",
+                "name": "LogSource",
+                "kind": "abstract",
+                "members": [
+                  "Analyze(): string",
+                  "CreateReader(): ILogReader"
+                ],
+                "col": 0,
+                "row": 0
+              },
+              {
+                "id": "product",
+                "name": "ILogReader",
+                "kind": "interface",
+                "members": [
+                  "Read(): string"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "file",
+                "name": "FileLogSource",
+                "kind": "class",
+                "members": [
+                  "CreateReader(): ILogReader"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "mem",
+                "name": "MemoryLogSource",
+                "kind": "class",
+                "members": [
+                  "CreateReader(): ILogReader"
+                ],
+                "col": 1,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "file",
+                "to": "creator",
+                "kind": "inheritance"
+              },
+              {
+                "from": "mem",
+                "to": "creator",
+                "kind": "inheritance"
+              },
+              {
+                "from": "creator",
+                "to": "product",
+                "kind": "dependency",
+                "label": "creates"
+              },
+              {
+                "from": "file",
+                "to": "product",
+                "kind": "realization"
+              },
+              {
+                "from": "mem",
+                "to": "product",
+                "kind": "realization"
+              }
+            ]
+          }
+        },
+        {
+          "id": "dependency-injection",
+          "name": "Dependency Injection",
+          "intent": "Supplies an object's dependencies from the outside (via constructor) instead of letting it create them itself.",
+          "problem": "A class creates its concrete dependencies itself, making reuse and testing with substitutes (e.g. clocks) impossible.",
+          "solution": "Describe dependencies as interfaces, accept them via the constructor, and compose the object in a DI container.",
+          "applicability": [
+            "Testability via substitute dependencies",
+            "Swap implementations without touching clients",
+            "Explicit class contracts"
+          ],
+          "pros": [
+            "Separates high- and low-level code",
+            "Easier parallel development",
+            "Minimal changes when swapping implementations"
+          ],
+          "cons": [
+            "Container infrastructure for trivial cases",
+            "Risk of drifting toward a service locator"
+          ],
+          "code": {
+            "title": "Report service with clocks",
+            "language": "csharp",
+            "source": "public interface IClock\n{\n    string Now();\n}\n\npublic sealed class SystemClock : IClock\n{\n    public string Now() => DateTime.UtcNow.ToString(\"HH:mm\");\n}\n\npublic sealed class FixedClock : IClock\n{\n    public string Now() => \"12:00\";\n}\n\npublic sealed class ReportService(IClock clock)\n{\n    public string Header() => $\"report at {clock.Now()}\";\n}\n\npublic static class Container\n{\n    private static readonly Dictionary<Type, Func<object>> Registrations = [];\n\n    public static void Register<T>(Func<T> factory) => Registrations[typeof(T)] = () => factory()!;\n\n    public static T Resolve<T>() => (T)Registrations[typeof(T)]();\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        Container.Register<IClock>(() => new FixedClock());\n        var service = new ReportService(Container.Resolve<IClock>());\n        return service.Header();\n    }\n}\n\n// Demo.Run() -> \"report at 12:00\""
+          },
+          "diagram": {
+            "title": "Dependency Injection",
+            "nodes": [
+              {
+                "id": "service",
+                "name": "ReportService",
+                "kind": "class",
+                "members": [
+                  "Header(): string",
+                  "ctor(clock: IClock)"
+                ],
+                "col": 0,
+                "row": 0
+              },
+              {
+                "id": "abstraction",
+                "name": "IClock",
+                "kind": "interface",
+                "members": [
+                  "Now(): string"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "sys",
+                "name": "SystemClock",
+                "kind": "class",
+                "members": [
+                  "Now(): string"
+                ],
+                "col": 1,
+                "row": 1
+              },
+              {
+                "id": "fixed",
+                "name": "FixedClock",
+                "kind": "class",
+                "members": [
+                  "Now(): string"
+                ],
+                "col": 2,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "service",
+                "to": "abstraction",
+                "kind": "dependency",
+                "label": "uses"
+              },
+              {
+                "from": "sys",
+                "to": "abstraction",
+                "kind": "realization"
+              },
+              {
+                "from": "fixed",
+                "to": "abstraction",
+                "kind": "realization"
+              }
+            ]
           }
         }
       ]
@@ -75,13 +462,49 @@
           "diagram": {
             "title": "Adapter",
             "nodes": [
-              { "id": "target", "name": "ILogger", "kind": "interface", "members": ["Log(string msg)"], "col": 1, "row": 0 },
-              { "id": "adapter", "name": "LegacyLoggerAdapter", "kind": "class", "members": ["_legacy: OldLogSdk"], "col": 1, "row": 1 },
-              { "id": "adaptee", "name": "OldLogSdk", "kind": "class", "members": ["WriteLine(string, int)"], "col": 2, "row": 2 }
+              {
+                "id": "target",
+                "name": "ILogger",
+                "kind": "interface",
+                "members": [
+                  "Log(string msg)"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "adapter",
+                "name": "LegacyLoggerAdapter",
+                "kind": "class",
+                "members": [
+                  "_legacy: OldLogSdk"
+                ],
+                "col": 1,
+                "row": 1
+              },
+              {
+                "id": "adaptee",
+                "name": "OldLogSdk",
+                "kind": "class",
+                "members": [
+                  "WriteLine(string, int)"
+                ],
+                "col": 2,
+                "row": 2
+              }
             ],
             "links": [
-              { "from": "adapter", "to": "target", "kind": "realization" },
-              { "from": "adapter", "to": "adaptee", "kind": "composition", "label": "uses" }
+              {
+                "from": "adapter",
+                "to": "target",
+                "kind": "realization"
+              },
+              {
+                "from": "adapter",
+                "to": "adaptee",
+                "kind": "composition",
+                "label": "uses"
+              }
             ]
           },
           "code": {
@@ -120,15 +543,61 @@
           "diagram": {
             "title": "Strategy",
             "nodes": [
-              { "id": "strategy", "name": "ISortStrategy", "kind": "interface", "members": ["Sort(int[] data): int[]"], "col": 1, "row": 0 },
-              { "id": "quick", "name": "QuickSort", "kind": "class", "members": [], "col": 0, "row": 1 },
-              { "id": "bubble", "name": "BubbleSort", "kind": "class", "members": [], "col": 2, "row": 1 },
-              { "id": "context", "name": "Sorter", "kind": "class", "members": ["_strategy: ISortStrategy", "Run(int[]): int[]"], "col": 1, "row": 2 }
+              {
+                "id": "strategy",
+                "name": "ISortStrategy",
+                "kind": "interface",
+                "members": [
+                  "Sort(int[] data): int[]"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "quick",
+                "name": "QuickSort",
+                "kind": "class",
+                "members": [],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "bubble",
+                "name": "BubbleSort",
+                "kind": "class",
+                "members": [],
+                "col": 2,
+                "row": 1
+              },
+              {
+                "id": "context",
+                "name": "Sorter",
+                "kind": "class",
+                "members": [
+                  "_strategy: ISortStrategy",
+                  "Run(int[]): int[]"
+                ],
+                "col": 1,
+                "row": 2
+              }
             ],
             "links": [
-              { "from": "quick", "to": "strategy", "kind": "realization" },
-              { "from": "bubble", "to": "strategy", "kind": "realization" },
-              { "from": "context", "to": "strategy", "kind": "association", "label": "delegates" }
+              {
+                "from": "quick",
+                "to": "strategy",
+                "kind": "realization"
+              },
+              {
+                "from": "bubble",
+                "to": "strategy",
+                "kind": "realization"
+              },
+              {
+                "from": "context",
+                "to": "strategy",
+                "kind": "association",
+                "label": "delegates"
+              }
             ]
           },
           "code": {

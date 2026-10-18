@@ -40,10 +40,22 @@ public class PatternExamplesBatch1BehaviorTests
     {
         var source = ExampleCompilationService.LoadAllExamples()["strategy"];
 
-        // Contract ExecuteDemoRun: параметрам int[]/bool передаются []/false —
-        // пустой вход должен возвращаться отсортированным без исключений.
+        // Контракт ExecuteDemoRun: int[] -> [], bool -> false (ascending).
+        // Пустой вход должен возвращаться как пустой массив без исключений.
         var asc = ExampleCompilationService.ExecuteDemoRun("strategy", source);
-        asc.Should().Be("[]");
+        asc.Should().Be("");
+
+        // Демонстрация смены алгоритма на лету — вызываем Demo.Run напрямую
+        // через компиляцию и reflection, передавая реальные данные.
+        var results = ExampleCompilationService.ExecuteDemoRunWithArgs(
+            "strategy", source,
+            args: [new int[] { 3, 1, 2 }, false]);
+        results.Should().Be("1,2,3");
+
+        var descResults = ExampleCompilationService.ExecuteDemoRunWithArgs(
+            "strategy", source,
+            args: [new int[] { 3, 1, 2 }, true]);
+        descResults.Should().Be("3,2,1");
     }
 
     private static string RunAbstractFactory(string source, bool dark)

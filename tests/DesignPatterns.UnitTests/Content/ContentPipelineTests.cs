@@ -42,8 +42,7 @@ public class ContentPipelineTests
 
         catalog.Select(c => c.Id).Should().Equal("creational", "structural", "behavioral");
 
-        var factory = catalog[0].Patterns.Single();
-        factory.Id.Should().Be("abstract-factory");
+        var factory = catalog[0].Patterns.Single(p => p.Id == "abstract-factory");
         factory.Name.Get(AppLanguage.Russian).Should().Be("Абстрактная фабрика");
         factory.Name.Get(AppLanguage.English).Should().Be("Abstract Factory");
         factory.Intent.En.Should().NotBeNullOrWhiteSpace();
@@ -52,6 +51,42 @@ public class ContentPipelineTests
         factory.Applicability.Ru.Should().Contain("•");
         factory.Pros.Should().OnlyContain(p => !string.IsNullOrWhiteSpace(p.Ru) && !string.IsNullOrWhiteSpace(p.En));
         factory.Cons.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void Map_EveryPatternIsFullyLocalized()
+    {
+        // Инвариант Этапа 4: каждый паттерн в каталоге обязан иметь заполненные
+        // RU и EN тексты во всех секциях карточки (плюс диаграмму и пример).
+        var catalog = LoadCatalog();
+        var all = catalog.SelectMany(c => c.Patterns).ToList();
+
+        all.Should().HaveCountGreaterThanOrEqualTo(8);
+        foreach (var pattern in all)
+        {
+            pattern.Name.Ru.Should().NotBeNullOrWhiteSpace(pattern.Id);
+            pattern.Name.En.Should().NotBeNullOrWhiteSpace(pattern.Id);
+            pattern.Intent.Ru.Should().NotBeNullOrWhiteSpace();
+            pattern.Problem.En.Should().NotBeNullOrWhiteSpace();
+            pattern.Solution.Ru.Should().NotBeNullOrWhiteSpace();
+            pattern.Applicability.Ru.Should().NotBeEmpty();
+            pattern.Applicability.En.Should().NotBeEmpty();
+            pattern.Pros.Should().NotBeEmpty();
+            pattern.Cons.Should().NotBeEmpty();
+            pattern.Diagram.Nodes.Should().NotBeEmpty();
+            pattern.Example.SourceCode.Should().NotBeNullOrWhiteSpace();
+        }
+    }
+
+    [Fact]
+    public void Map_StructuralAndBehavioralCategoriesPopulated()
+    {
+        var catalog = LoadCatalog();
+
+        catalog.Single(c => c.Id == "structural").Patterns.Select(p => p.Id)
+            .Should().Contain(["adapter"]);
+        catalog.Single(c => c.Id == "behavioral").Patterns.Select(p => p.Id)
+            .Should().Contain(["strategy"]);
     }
 
     [Fact]
