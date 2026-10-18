@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:DesignPatterns.Core.ViewModels;assembly=DesignPatterns.Core"
+             x:Class="DesignPatterns.App.PatternDetailPage"
+             Title="Паттерн"
+             x:DataType="vm:PatternDetailViewModel">
+
+    <ScrollView AutomationId="PatternDetailScroll">
+        <VerticalStackLayout Padding="16" Spacing="12">
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Grid.Column="0" Text="{Binding Title}" FontSize="24" FontAttributes="Bold"
+                       VerticalTextAlignment="Center" AutomationId="PatternTitle" />
+                <Button Grid.Column="1" Text="{Binding FavoriteGlyph}"
+                        Command="{Binding ToggleFavoriteCommand}"
+                        AutomationId="FavoriteToggle" />
+            </Grid>
+
+            <Label Text="{Binding ProblemText}" LineBreakMode="WordWrap" AutomationId="ProblemSection" />
+            <Label Text="{Binding SolutionText}" LineBreakMode="WordWrap" AutomationId="SolutionSection" />
+
+            <!-- UML-диаграмма: вектор, генерируется кодом, масштабируется под ширину -->
+            <GraphicsView x:Name="DiagramCanvas" HeightRequest="320" AutomationId="DiagramView" />
+
+            <Border Stroke="#DDD" StrokeThickness="1" Padding="8">
+                <Label Text="{Binding CodeText}" FontFamily="Monospace" FontSize="12"
+                       LineBreakMode="WordWrap" AutomationId="CodeSection" />
+            </Border>
+
+            <Label Text="{Binding ApplicabilityText}" LineBreakMode="WordWrap" AutomationId="ApplicabilitySection" />
+            <Label Text="{Binding ProsText}" LineBreakMode="WordWrap" TextColor="DarkGreen" AutomationId="ProsSection" />
+            <Label Text="{Binding ConsText}" LineBreakMode="WordWrap" TextColor="DarkRed" AutomationId="ConsSection" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
