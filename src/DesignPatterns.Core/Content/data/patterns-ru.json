@@ -30,19 +30,406 @@
           "diagram": {
             "title": "Abstract Factory",
             "nodes": [
-              { "id": "ui-factory", "name": "GUIFactory", "kind": "interface", "members": ["CreateButton(): Button", "CreateMenu(): Menu"], "col": 1, "row": 0 },
-              { "id": "dark-factory", "name": "DarkThemeFactory", "kind": "class", "members": [], "col": 0, "row": 1 },
-              { "id": "light-factory", "name": "LightThemeFactory", "kind": "class", "members": [], "col": 2, "row": 1 }
+              {
+                "id": "ui-factory",
+                "name": "GUIFactory",
+                "kind": "interface",
+                "members": [
+                  "CreateButton(): Button",
+                  "CreateMenu(): Menu"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "dark-factory",
+                "name": "DarkThemeFactory",
+                "kind": "class",
+                "members": [],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "light-factory",
+                "name": "LightThemeFactory",
+                "kind": "class",
+                "members": [],
+                "col": 2,
+                "row": 1
+              }
             ],
             "links": [
-              { "from": "dark-factory", "to": "ui-factory", "kind": "realization" },
-              { "from": "light-factory", "to": "ui-factory", "kind": "realization" }
+              {
+                "from": "dark-factory",
+                "to": "ui-factory",
+                "kind": "realization"
+              },
+              {
+                "from": "light-factory",
+                "to": "ui-factory",
+                "kind": "realization"
+              }
             ]
           },
           "code": {
             "title": "Темы GUI",
             "language": "csharp",
             "source": "public interface IButton { string Render(); }\npublic interface IMenu { string Open(); }\n\npublic interface IUIFactory\n{\n    IButton CreateButton();\n    IMenu CreateMenu();\n}\n\n// Семейство «тёмная тема»\npublic sealed class DarkButton : IButton { public string Render() => \"[dark button]\"; }\npublic sealed class DarkMenu : IMenu { public string Open() => \"{dark menu}\"; }\npublic sealed class DarkFactory : IUIFactory\n{\n    public IButton CreateButton() => new DarkButton();\n    public IMenu CreateMenu() => new DarkMenu();\n}\n\n// Семейство «светлая тема»\npublic sealed class LightButton : IButton { public string Render() => \"[light button]\"; }\npublic sealed class LightMenu : IMenu { public string Open() => \"{light menu}\"; }\npublic sealed class LightFactory : IUIFactory\n{\n    public IButton CreateButton() => new LightButton();\n    public IMenu CreateMenu() => new LightMenu();\n}\n\npublic static class Demo\n{\n    public static string Run(IUIFactory factory)\n    {\n        var button = factory.CreateButton();\n        var menu = factory.CreateMenu();\n        return $\"{button.Render()} {menu.Open()}\";\n    }\n}\n\n// Console.WriteLine(Demo.Run(new DarkFactory())); // [dark button] {dark menu}"
+          }
+        },
+        {
+          "id": "builder",
+          "name": "Строитель",
+          "intent": "Последовательно создаёт сложный объект, отделяя процесс сборки от его представления.",
+          "problem": "Конструктор объекта разрастается из-за множества опциональных параметров и проверок инвариантов; появляются телескопические конструкторы.",
+          "solution": "Вынести сборку в отдельный «строитель» с цепочкой методов With... и финальным Build(), который проверяет инварианты.",
+          "applicability": [
+            "Создание сложных объектов с опциями и ограничениями",
+            "Нужны разные представления одного процесса сборки",
+            "Требуется неизменяемый результат"
+          ],
+          "pros": [
+            "Пошаговая читаемая сборка",
+            "Централизация проверок инвариантов",
+            "Легко добавлять новые шаги"
+          ],
+          "cons": [
+            "Больше кода для простых объектов",
+            "Строитель часто знает внутренности продукта"
+          ],
+          "diagram": {
+            "title": "Builder",
+            "nodes": [
+              {
+                "id": "builder",
+                "name": "MealBuilder",
+                "kind": "class",
+                "members": [
+                  "WithDrink(drink): MealBuilder",
+                  "WithSide(side): MealBuilder",
+                  "WithDessert(): MealBuilder",
+                  "Build(): string"
+                ],
+                "col": 0,
+                "row": 0
+              },
+              {
+                "id": "product",
+                "name": "Meal (string)",
+                "kind": "class",
+                "members": [],
+                "col": 1,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "builder",
+                "to": "product",
+                "kind": "dependency",
+                "label": "creates"
+              }
+            ]
+          },
+          "code": {
+            "title": "Комбо-обед",
+            "language": "csharp",
+            "source": "public sealed class MealBuilder\n{\n    private string _drink = \"water\";\n    private string _side = \"none\";\n    private bool _dessert;\n\n    public MealBuilder WithDrink(string drink) { _drink = drink; return this; }\n    public MealBuilder WithSide(string side) { _side = side; return this; }\n    public MealBuilder WithDessert() { _dessert = true; return this; }\n\n    public string Build() => $\"{_drink}+{_side}{(_dessert ? \"+cake\" : string.Empty)}\";\n}\n\npublic static class Demo\n{\n    public static string Run() =>\n        new MealBuilder().WithDrink(\"juice\").WithSide(\"fries\").WithDessert().Build();\n}\n\n// Demo.Run() -> \"juice+fries+cake\""
+          }
+        },
+        {
+          "id": "prototype",
+          "name": "Прототип",
+          "intent": "Создаёт новые объекты путём копирования существующего экземпляра-прототипа.",
+          "problem": "Создание объекта «с нуля» дорого или требует знания приватных полей; нужно быстро получать похожие конфигурации.",
+          "solution": "Реализовать метод Clone(), копирующий состояние объекта (глубоко — списки/словари), и производить новые экземпляры из прототипа.",
+          "applicability": [
+            "Избегать подклассов ради параметризации",
+            "Копировать сложные графы объектов",
+            "Создавать объекты без знания их конкретных классов"
+          ],
+          "pros": [
+            "Быстрое создание настроенных объектов",
+            "Не нужен код инициализации",
+            "Работает с неизвестными классами через абстракцию"
+          ],
+          "cons": [
+            "Глубокое копирование нетривиально (циклы)",
+            "Клонирование скрытых ссылок легко забыть"
+          ],
+          "diagram": {
+            "title": "Prototype",
+            "nodes": [
+              {
+                "id": "proto",
+                "name": "DocTemplate",
+                "kind": "abstract",
+                "members": [
+                  "Title: string",
+                  "Tags: List<string>",
+                  "Clone(): DocTemplate"
+                ],
+                "col": 0,
+                "row": 0
+              },
+              {
+                "id": "concrete",
+                "name": "ReportTemplate",
+                "kind": "class",
+                "members": [
+                  "Year: int",
+                  "Clone(): DocTemplate"
+                ],
+                "col": 0,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "concrete",
+                "to": "proto",
+                "kind": "inheritance"
+              }
+            ]
+          },
+          "code": {
+            "title": "Шаблоны отчётов",
+            "language": "csharp",
+            "source": "public abstract class DocTemplate\n{\n    public string Title { get; set; } = \"\";\n    public List<string> Tags { get; init; } = [];\n    public abstract DocTemplate Clone();\n}\n\npublic sealed class ReportTemplate : DocTemplate\n{\n    public int Year { get; set; }\n    public override DocTemplate Clone() => new ReportTemplate\n    {\n        Title = Title,\n        Year = Year,\n        Tags = [.. Tags], // глубокая копия списка тегов\n    };\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        var original = new ReportTemplate { Title = \"Q1\", Year = 2026 };\n        original.Tags.Add(\"finance\");\n\n        var copy = (ReportTemplate)original.Clone();\n        copy.Title = \"Q2\";\n        copy.Tags.Add(\"draft\");\n\n        // Оригинальные теги не затронуты — значит клонирование глубокое.\n        return $\"{original.Title}:{original.Tags.Count}|{copy.Title}:{copy.Tags.Count}\";\n    }\n}\n\n// Demo.Run() -> \"Q1:1|Q2:2\""
+          }
+        },
+        {
+          "id": "singleton",
+          "name": "Одиночка",
+          "intent": "Гарантирует единственность экземпляра класса и даёт глобальную точку доступа к нему.",
+          "problem": "В приложении должен быть ровно один экземпляр ресурса (конфигурация, логгер, пул), доступный из любой точки.",
+          "solution": "Закрыть конструктор и открыть статическое свойство Instance, инициализируемое однократно и потокобезопасно.",
+          "applicability": [
+            "Ровно один экземпляр с контролируемым доступом",
+            "Единая точка управления общим ресурсом"
+          ],
+          "pros": [
+            "Простая глобальная точка доступа",
+            "Отложенная инициализация",
+            "Экономия ресурсов на дорогих объектах"
+          ],
+          "cons": [
+            "Глобальное состояние усложняет тесты",
+            "Скрытые зависимости между модулями",
+            "Нарушает SRP, если хранит логику"
+          ],
+          "diagram": {
+            "title": "Singleton",
+            "nodes": [
+              {
+                "id": "singleton",
+                "name": "AppConfig",
+                "kind": "class",
+                "members": [
+                  "-Instance: AppConfig",
+                  "-AppConfig()",
+                  "+Version: string"
+                ],
+                "col": 0,
+                "row": 0
+              }
+            ],
+            "links": []
+          },
+          "code": {
+            "title": "Конфигурация приложения",
+            "language": "csharp",
+            "source": "public sealed class AppConfig\n{\n    public static readonly AppConfig Instance = new();\n    private AppConfig() { Version = \"1.0\"; }\n\n    public string Version { get; set; }\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        var a = AppConfig.Instance;\n        var b = AppConfig.Instance;\n        a.Version = \"2.0\";\n        // Обе ссылки указывают на один экземпляр — изменение видно всем.\n        return ReferenceEquals(a, b) ? b.Version : \"broken\";\n    }\n}\n\n// Demo.Run() -> \"2.0\""
+          }
+        },
+        {
+          "id": "factory-method",
+          "name": "Фабричный метод",
+          "intent": "Определяет интерфейс создания объекта, но позволяет подклассам решать, какой класс instantiate.",
+          "problem": "Класс не может заранее знать, какие подтипы продуктов ему создавать, но хочет централизовать общий код работы с ними.",
+          "solution": "Вынести создание продукта в защищённый абстрактный фабричный метод; подклассы переопределяют его, возвращая нужный продукт.",
+          "applicability": [
+            "Класс заранее не знает типов создаваемых продуктов",
+            "Библиотека хочет отдавать пользователям точки расширения",
+            "Переиспользование логики над разными продуктами"
+          ],
+          "pros": [
+            "Инкапсуляция создания в одном месте",
+            "Лёгкое добавление новых продуктов",
+            "Слабая связанность клиента с конкретными классами"
+          ],
+          "cons": [
+            "Для каждого продукта — свой подкласс",
+            "Иерархия сложнее, чем простой new"
+          ],
+          "diagram": {
+            "title": "Factory Method",
+            "nodes": [
+              {
+                "id": "creator",
+                "name": "LogSource",
+                "kind": "abstract",
+                "members": [
+                  "Analyze(): string",
+                  "CreateReader(): ILogReader"
+                ],
+                "col": 0,
+                "row": 0
+              },
+              {
+                "id": "product",
+                "name": "ILogReader",
+                "kind": "interface",
+                "members": [
+                  "Read(): string"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "file",
+                "name": "FileLogSource",
+                "kind": "class",
+                "members": [
+                  "CreateReader(): ILogReader"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "mem",
+                "name": "MemoryLogSource",
+                "kind": "class",
+                "members": [
+                  "CreateReader(): ILogReader"
+                ],
+                "col": 1,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "file",
+                "to": "creator",
+                "kind": "inheritance"
+              },
+              {
+                "from": "mem",
+                "to": "creator",
+                "kind": "inheritance"
+              },
+              {
+                "from": "creator",
+                "to": "product",
+                "kind": "dependency",
+                "label": "creates"
+              },
+              {
+                "from": "file",
+                "to": "product",
+                "kind": "realization"
+              },
+              {
+                "from": "mem",
+                "to": "product",
+                "kind": "realization"
+              }
+            ]
+          },
+          "code": {
+            "title": "Источники логов",
+            "language": "csharp",
+            "source": "public interface ILogReader\n{\n    string Read();\n}\n\npublic sealed class FileLogReader : ILogReader\n{\n    public string Read() => \"file log\";\n}\n\npublic sealed class MemoryLogReader : ILogReader\n{\n    public string Read() => \"memory log\";\n}\n\npublic abstract class LogSource\n{\n    public string Analyze() => $\"analyzed: {CreateReader().Read()}\";\n\n    protected abstract ILogReader CreateReader();\n}\n\npublic sealed class FileLogSource : LogSource\n{\n    protected override ILogReader CreateReader() => new FileLogReader();\n}\n\npublic sealed class MemoryLogSource : LogSource\n{\n    protected override ILogReader CreateReader() => new MemoryLogReader();\n}\n\npublic static class Demo\n{\n    public static string Run(LogSource source) => source.Analyze();\n}\n\n// Demo.Run(new FileLogSource()) -> \"analyzed: file log\""
+          }
+        },
+        {
+          "id": "dependency-injection",
+          "name": "Внедрение зависимостей",
+          "intent": "Передаёт зависимости объекту извне (через конструктор), вместо самостоятельного создания внутри.",
+          "problem": "Класс сам создаёт конкретные зависимости — его нельзя переиспользовать и протестировать с заменой (например, часов).",
+          "solution": "Описать зависимости через интерфейсы, принимать их в конструкторе и собирать объект в DI-контейнере.",
+          "applicability": [
+            "Тестируемость через подмены зависимостей",
+            "Гибкая замена реализаций без правок клиента",
+            "Явные контракты класса"
+          ],
+          "pros": [
+            "Разделяет высокоуровневый и низкоуровневый код",
+            "Проще параллельная разработка",
+            "Минимальные правки при замене реализации"
+          ],
+          "cons": [
+            "Инфраструктура контейнера ради простых случаев",
+            "Риск «сервис-локатора» вместо явного внедрения"
+          ],
+          "diagram": {
+            "title": "Dependency Injection",
+            "nodes": [
+              {
+                "id": "service",
+                "name": "ReportService",
+                "kind": "class",
+                "members": [
+                  "Header(): string",
+                  "ctor(clock: IClock)"
+                ],
+                "col": 0,
+                "row": 0
+              },
+              {
+                "id": "abstraction",
+                "name": "IClock",
+                "kind": "interface",
+                "members": [
+                  "Now(): string"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "sys",
+                "name": "SystemClock",
+                "kind": "class",
+                "members": [
+                  "Now(): string"
+                ],
+                "col": 1,
+                "row": 1
+              },
+              {
+                "id": "fixed",
+                "name": "FixedClock",
+                "kind": "class",
+                "members": [
+                  "Now(): string"
+                ],
+                "col": 2,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "service",
+                "to": "abstraction",
+                "kind": "dependency",
+                "label": "uses"
+              },
+              {
+                "from": "sys",
+                "to": "abstraction",
+                "kind": "realization"
+              },
+              {
+                "from": "fixed",
+                "to": "abstraction",
+                "kind": "realization"
+              }
+            ]
+          },
+          "code": {
+            "title": "Сервис отчётов с часами",
+            "language": "csharp",
+            "source": "public interface IClock\n{\n    string Now();\n}\n\npublic sealed class SystemClock : IClock\n{\n    public string Now() => DateTime.UtcNow.ToString(\"HH:mm\");\n}\n\npublic sealed class FixedClock : IClock\n{\n    public string Now() => \"12:00\";\n}\n\npublic sealed class ReportService(IClock clock)\n{\n    public string Header() => $\"report at {clock.Now()}\";\n}\n\npublic static class Container\n{\n    private static readonly Dictionary<Type, Func<object>> Registrations = [];\n\n    public static void Register<T>(Func<T> factory) => Registrations[typeof(T)] = () => factory()!;\n\n    public static T Resolve<T>() => (T)Registrations[typeof(T)]();\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        Container.Register<IClock>(() => new FixedClock());\n        var service = new ReportService(Container.Resolve<IClock>());\n        return service.Header();\n    }\n}\n\n// Demo.Run() -> \"report at 12:00\""
           }
         }
       ]
@@ -75,19 +462,557 @@
           "diagram": {
             "title": "Adapter",
             "nodes": [
-              { "id": "target", "name": "ILogger", "kind": "interface", "members": ["Log(string msg)"], "col": 1, "row": 0 },
-              { "id": "adapter", "name": "LegacyLoggerAdapter", "kind": "class", "members": ["_legacy: OldLogSdk"], "col": 1, "row": 1 },
-              { "id": "adaptee", "name": "OldLogSdk", "kind": "class", "members": ["WriteLine(string, int)"], "col": 2, "row": 2 }
+              {
+                "id": "target",
+                "name": "ILogger",
+                "kind": "interface",
+                "members": [
+                  "Log(string msg)"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "adapter",
+                "name": "LegacyLoggerAdapter",
+                "kind": "class",
+                "members": [
+                  "_legacy: OldLogSdk"
+                ],
+                "col": 1,
+                "row": 1
+              },
+              {
+                "id": "adaptee",
+                "name": "OldLogSdk",
+                "kind": "class",
+                "members": [
+                  "WriteLine(string, int)"
+                ],
+                "col": 2,
+                "row": 2
+              }
             ],
             "links": [
-              { "from": "adapter", "to": "target", "kind": "realization" },
-              { "from": "adapter", "to": "adaptee", "kind": "composition", "label": "uses" }
+              {
+                "from": "adapter",
+                "to": "target",
+                "kind": "realization"
+              },
+              {
+                "from": "adapter",
+                "to": "adaptee",
+                "kind": "composition",
+                "label": "uses"
+              }
             ]
           },
           "code": {
             "title": "Обёртка над legacy SDK",
             "language": "csharp",
             "source": "public interface ILogger\n{\n    void Log(string message);\n    IReadOnlyList<string> Entries { get; }\n}\n\n// Старый SDK с неудобным API (его менять нельзя)\npublic sealed class OldLogSdk\n{\n    private readonly List<string> _lines = [];\n    public void WriteLine(string message, int level) => _lines.Add($\"L{level}: {message}\");\n    public IReadOnlyList<string> Dump() => _lines;\n}\n\npublic sealed class LegacyLoggerAdapter : ILogger\n{\n    private readonly OldLogSdk _legacy = new();\n\n    public void Log(string message) => _legacy.WriteLine(message, level: 1);\n\n    public IReadOnlyList<string> Entries => _legacy.Dump();\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        ILogger logger = new LegacyLoggerAdapter();\n        logger.Log(\"hello\");\n        return string.Join(\"|\", logger.Entries); // \"L1: hello\"\n    }\n}\n\n// Console.WriteLine(Demo.Run()); // L1: hello"
+          }
+        },
+        {
+          "id": "bridge",
+          "name": "Мост",
+          "intent": "Разделяет абстракцию и её реализацию по двум независимым иерархиям, которые можно развивать отдельно.",
+          "problem": "Жёсткая связь между классом-абстракцией и классами-реализациями приводит к взрыву числа подклассов при добавлении новой платформы или варианта.",
+          "solution": "Абстракция хранит ссылку на объект реализации (интерфейс) и делегирует ей работу. Обе стороны общаются только через общий контракт и развиваются независимо.",
+          "applicability": [
+            "Нужно отвязать абстракцию от реализации (кроссплатформенность)",
+            "Хотите менять реализации во время выполнения",
+            "Две orthogonal'ные оси вариативности (форма × API рисования)"
+          ],
+          "pros": [
+            "Реализации и абстракции можно расширять независимо",
+            "Скрытие деталей реализации от клиента",
+            "Подмена поведения без пересборки иерархии"
+          ],
+          "cons": [
+            "Усложнение кода из-за разделения на две иерархии",
+            "Клиенту нужно знать о обеих иерархиях"
+          ],
+          "diagram": {
+            "title": "Мост: Shape ↔ DrawAPI",
+            "nodes": [
+              {
+                "id": "abstraction",
+                "name": "Shape",
+                "kind": "abstract",
+                "members": [
+                  "#Api: IDrawApi",
+                  "Render()"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "refined1",
+                "name": "Circle",
+                "kind": "class",
+                "members": [
+                  "Render()"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "refined2",
+                "name": "Dot",
+                "kind": "class",
+                "members": [
+                  "Render()"
+                ],
+                "col": 2,
+                "row": 1
+              },
+              {
+                "id": "implementor",
+                "name": "IDrawApi",
+                "kind": "interface",
+                "members": [
+                  "DrawCircle(r)",
+                  "DrawDot(x,y)"
+                ],
+                "col": 1,
+                "row": 2
+              },
+              {
+                "id": "concrete1",
+                "name": "Raster16Api",
+                "kind": "class",
+                "members": [],
+                "col": 0,
+                "row": 3
+              },
+              {
+                "id": "concrete2",
+                "name": "VectorApi",
+                "kind": "class",
+                "members": [],
+                "col": 2,
+                "row": 3
+              }
+            ],
+            "links": [
+              {
+                "from": "refined1",
+                "to": "abstraction",
+                "kind": "inheritance",
+                "label": null
+              },
+              {
+                "from": "refined2",
+                "to": "abstraction",
+                "kind": "inheritance",
+                "label": null
+              },
+              {
+                "from": "abstraction",
+                "to": "implementor",
+                "kind": "association",
+                "label": "uses"
+              },
+              {
+                "from": "concrete1",
+                "to": "implementor",
+                "kind": "realization",
+                "label": null
+              },
+              {
+                "from": "concrete2",
+                "to": "implementor",
+                "kind": "realization",
+                "label": null
+              }
+            ]
+          },
+          "code": {
+            "title": "Фигуры поверх разных графических API",
+            "language": "csharp",
+            "source": "public interface IDrawApi\n{\n    string DrawCircle(double radius);\n    string DrawDot(double x, double y);\n}\n\npublic sealed class Raster16Api : IDrawApi\n{\n    public string DrawCircle(double radius) => $\"r16 circle {radius:F1}\";\n    public string DrawDot(double x, double y) => $\"r16 dot {x:F1},{y:F1}\";\n}\n\npublic sealed class VectorApi : IDrawApi\n{\n    public string DrawCircle(double radius) => $\"vec circle {radius:F1}\";\n    public string DrawDot(double x, double y) => $\"vec dot {x:F1},{y:F1}\";\n}\n\n// Абстракция не привязана к конкретной реализации API.\npublic abstract class Shape\n{\n    protected Shape(IDrawApi api) => Api = api;\n    protected IDrawApi Api { get; }\n    public abstract string Render();\n}\n\npublic sealed class Circle : Shape\n{\n    private readonly double _radius;\n    public Circle(double radius, IDrawApi api) : base(api) => _radius = radius;\n    public override string Render() => Api.DrawCircle(_radius);\n}\n\npublic sealed class Dot : Shape\n{\n    private readonly double _x, _y;\n    public Dot(double x, double y, IDrawApi api) : base(api) { _x = x; _y = y; }\n    public override string Render() => Api.DrawDot(_x, _y);\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        var shapes = new List<Shape>\n        {\n            new Circle(2, new Raster16Api()),\n            new Circle(2, new VectorApi()),\n            new Dot(1, 1, new VectorApi()),\n        };\n        return string.Join(\"|\", shapes.ConvertAll(s => s.Render()));\n    }\n}\n\n// Demo.Run() -> \"r16 circle 2.0|vec circle 2.0|vec dot 1.0,1.0\""
+          }
+        },
+        {
+          "id": "composite",
+          "name": "Компоновщик",
+          "intent": "Компонурует объекты в древовидную структуру «часть-целое», позволяя клиенту одинаково работать с отдельными объектами и их композициями.",
+          "problem": "Клиенту нужно обрабатывать и одиночные объекты, и группы объектов — при этом код дублирует логику для каждого вида, а обход дерева усложняется.",
+          "solution": "Общий компонентный интерфейс реализуют и листья, и контейнеры. Контейнер хранит коллекцию компонентов и рекурсивно делегирует им операции.",
+          "applicability": [
+            "Предметная область естественным образом образует дерево (папки, UI, меню)",
+            "Клиент должен одинаково трактовать одиночные объекты и композиции",
+            "Нужна единая точка рекурсивного обхода"
+          ],
+          "pros": [
+            "Единый интерфейс для листьев и контейнеров",
+            "Новые типы компонентов легко добавлять",
+            "Рекурсивные операции пишутся один раз"
+          ],
+          "cons": [
+            "Сложно ограничить состав компонентов",
+            "Избыочно общий интерфейс для специфичных операций"
+          ],
+          "diagram": {
+            "title": "Компоновщик: IComponent",
+            "nodes": [
+              {
+                "id": "component",
+                "name": "IComponent",
+                "kind": "interface",
+                "members": [
+                  "GetCost()",
+                  "Describe()"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "leaf",
+                "name": "Leaf",
+                "kind": "class",
+                "members": [
+                  "_name",
+                  "_cost"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "composite",
+                "name": "Box",
+                "kind": "class",
+                "members": [
+                  "_children: List<IComponent>",
+                  "Add()"
+                ],
+                "col": 2,
+                "row": 1
+              },
+              {
+                "id": "child",
+                "name": "IComponent*",
+                "kind": "interface",
+                "members": [
+                  "(дочерние узлы)"
+                ],
+                "col": 2,
+                "row": 2
+              }
+            ],
+            "links": [
+              {
+                "from": "leaf",
+                "to": "component",
+                "kind": "realization",
+                "label": null
+              },
+              {
+                "from": "composite",
+                "to": "component",
+                "kind": "realization",
+                "label": null
+              },
+              {
+                "from": "composite",
+                "to": "child",
+                "kind": "composition",
+                "label": "holds"
+              }
+            ]
+          },
+          "code": {
+            "title": "Коробки и предметы внутри",
+            "language": "csharp",
+            "source": "public interface IComponent\n{\n    int GetCost();\n    string Describe();\n}\n\n// Лист — базовый строительный блок.\npublic sealed class Leaf : IComponent\n{\n    private readonly string _name;\n    private readonly int _cost;\n    public Leaf(string name, int cost) { _name = name; _cost = cost; }\n    public int GetCost() => _cost;\n    public string Describe() => $\"{_name}:{_cost}\";\n}\n\n// Контейнер: хранит компоненты и рекурсивно агрегирует их поведение.\npublic sealed class Box : IComponent\n{\n    private readonly string _name;\n    private readonly List<IComponent> _children = [];\n    public Box(string name) => _name = name;\n    public Box Add(IComponent component) { _children.Add(component); return this; }\n    public int GetCost() => _children.Sum(c => c.GetCost());\n    public string Describe() => $\"{_name}[{string.Join(\",\", _children.ConvertAll(c => c.Describe()))}]\";\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        // Древо: коробка с двумя листами и вложенной коробкой.\n        var small = new Box(\"small\").Add(new Leaf(\"ring\", 5)).Add(new Leaf(\"coin\", 3));\n        var big = new Box(\"big\").Add(new Leaf(\"sword\", 10)).Add(small);\n        return $\"{big.GetCost()}|{big.Describe()}\";\n    }\n}\n\n// Demo.Run() -> \"18|big[sword:10,small[ring:5,coin:3]]\""
+          }
+        },
+        {
+          "id": "decorator",
+          "name": "Decorator",
+          "intent": "Динамически добавляет объекту новое поведение, оборачивая его в объект-декоратор с тем же интерфейсом.",
+          "problem": "Наследование для каждого варианта поведения порождает огромное число подклассов, которые невозможно комбинировать произвольно.",
+          "solution": "Класс-декоратор содержит ссылку на оборачиваемый объект, реализует тот же интерфейс и дополняет/переопределяет его поведение. Декораторы можно наслаивать в любом порядке.",
+          "applicability": [
+            "Поведение нужно добавлять/снимать на лету",
+            "Прямое наследование неудобно или недоступно (sealed-классы)",
+            "Требуется свободная комбинация «прикрас»"
+          ],
+          "pros": [
+            "Гибче наследования: варианты комбинируются композицией",
+            "Новое поведение без изменения существующих классов",
+            "Соответствует Open/Closed"
+          ],
+          "cons": [
+            "Много мелких объектов-обёрток",
+            "Отладка цепочек декораторов требует внимания"
+          ],
+          "diagram": {
+            "title": "Декоратор: цепочка INotification",
+            "nodes": [
+              {
+                "id": "component",
+                "name": "INotification",
+                "kind": "interface",
+                "members": [
+                  "Content"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "concrete",
+                "name": "SimpleNotification",
+                "kind": "class",
+                "members": [
+                  "Content"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "decorator",
+                "name": "NotificationDecorator",
+                "kind": "abstract",
+                "members": [
+                  "-_wrappee: INotification",
+                  "+Content"
+                ],
+                "col": 2,
+                "row": 1
+              },
+              {
+                "id": "d1",
+                "name": "CriticalDecorator",
+                "kind": "class",
+                "members": [
+                  "Content"
+                ],
+                "col": 1,
+                "row": 2
+              },
+              {
+                "id": "d2",
+                "name": "SignedDecorator",
+                "kind": "class",
+                "members": [
+                  "Content"
+                ],
+                "col": 3,
+                "row": 2
+              }
+            ],
+            "links": [
+              {
+                "from": "concrete",
+                "to": "component",
+                "kind": "realization",
+                "label": null
+              },
+              {
+                "from": "decorator",
+                "to": "component",
+                "kind": "realization",
+                "label": null
+              },
+              {
+                "from": "decorator",
+                "to": "concrete",
+                "kind": "association",
+                "label": "wraps"
+              },
+              {
+                "from": "d1",
+                "to": "decorator",
+                "kind": "inheritance",
+                "label": null
+              },
+              {
+                "from": "d2",
+                "to": "decorator",
+                "kind": "inheritance",
+                "label": null
+              }
+            ]
+          },
+          "code": {
+            "title": "Приукрашивание уведомлений",
+            "language": "csharp",
+            "source": "public interface INotification\n{\n    string Content { get; }\n}\n\npublic sealed class SimpleNotification : INotification\n{\n    public string Content => \"Hello!\";\n}\n\n// Базовый декоратор: оборачивает компонент, реализуя тот же интерфейс.\npublic abstract class NotificationDecorator : INotification\n{\n    private readonly INotification _wrappee;\n    protected NotificationDecorator(INotification wrappee) => _wrappee = wrappee;\n    public virtual string Content => _wrappee.Content;\n}\n\npublic sealed class CriticalDecorator : NotificationDecorator\n{\n    public CriticalDecorator(INotification wrappee) : base(wrappee) { }\n    public override string Content => \"[CRIT]\" + base.Content;\n}\n\npublic sealed class SignedDecorator : NotificationDecorator\n{\n    public SignedDecorator(INotification wrappee) : base(wrappee) { }\n    public override string Content => base.Content + \"--sysadmin\";\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        // Оборачивание на лету: порядок decorators меняет результат.\n        INotification a = new SignedDecorator(new SimpleNotification());\n        INotification b = new CriticalDecorator(new SignedDecorator(a));\n        return $\"{a.Content}|{b.Content}\";\n    }\n}\n\n// Demo.Run() -> \"Hello!--sysadmin|[CRIT]Hello!--sysadmin--sysadmin\""
+          }
+        },
+        {
+          "id": "facade",
+          "name": "Фасад",
+          "intent": "Предоставляет упрощённый интерфейс к сложной подсистеме из множества классов, скрывая детали её работы.",
+          "problem": "Клиент вынужден напрямую взаимодействовать со множеством взаимосвязанных классов подсистемы, зная о их последовательности и контрактах.",
+          "solution": "Один класс-фасад инкапсулирует типичные сценарии обращения к подсистеме и предоставляет клиенту несколько простых методов.",
+          "applicability": [
+            "Нужен простой вход в сложную библиотеку/подсистему",
+            "Хотите разделить слои приложения (UI ← фасад → доменные сервисы)",
+            "Строите API над набором разрозненных модулей"
+          ],
+          "pros": [
+            "Клиент отвязан от деталей подсистемы",
+            "Читаемость и удобство использования",
+            "Точка централизации типовых сценариев"
+          ],
+          "cons": [
+            "Фасад может разрастись до «бога-объекта»",
+            "Не даёт прямого доступа к мощным возможностям подсистемы"
+          ],
+          "diagram": {
+            "title": "Фасад: конвертация видео",
+            "nodes": [
+              {
+                "id": "facade",
+                "name": "VideoConverterFacade",
+                "kind": "class",
+                "members": [
+                  "Convert(file, format)"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "s1",
+                "name": "CodecFactory",
+                "kind": "class",
+                "members": [
+                  "Extract()"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "s2",
+                "name": "AudioExtractor",
+                "kind": "class",
+                "members": [
+                  "EncodeToMp3()"
+                ],
+                "col": 1,
+                "row": 1
+              },
+              {
+                "id": "s3",
+                "name": "FlippingWriter",
+                "kind": "class",
+                "members": [
+                  "Save()"
+                ],
+                "col": 2,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "facade",
+                "to": "s1",
+                "kind": "dependency",
+                "label": null
+              },
+              {
+                "from": "facade",
+                "to": "s2",
+                "kind": "dependency",
+                "label": null
+              },
+              {
+                "from": "facade",
+                "to": "s3",
+                "kind": "dependency",
+                "label": null
+              }
+            ]
+          },
+          "code": {
+            "title": "Единая точка входа в конвейер конвертации",
+            "language": "csharp",
+            "source": "public sealed class VideoFile\n{\n    public VideoFile(string filePath) => Name = filePath;\n    public string Name { get; }\n}\n\npublic sealed class CodecFactory\n{\n    public string Extract(VideoFile file, string codec) => $\"{file.Name}->{codec}\";\n}\n\npublic sealed class AudioExtractor\n{\n    public string EncodeToMp3(VideoFile file) => $\"{file.Name}.mp3\";\n}\n\npublic sealed class FlippingWriter\n{\n    public void Save(string path, string data) { }\n}\n\n// Фасад: простой интерфейс к подсистеме из нескольких классов.\npublic sealed class VideoConverterFacade\n{\n    private readonly CodecFactory _codecs = new();\n    private readonly AudioExtractor _audio = new();\n    private readonly FlippingWriter _writer = new();\n\n    public string Convert(string file, string format)\n    {\n        var source = new VideoFile(file);\n        var video = _codecs.Extract(source, format);\n        var audioTrack = _audio.EncodeToMp3(source);\n        _writer.Save($\"{source.Name}.{format}\", video);\n        return $\"{video}+{audioTrack}\";\n    }\n}\n\npublic static class Demo\n{\n    public static string Run() => new VideoConverterFacade().Convert(\"fun.avi\", \"mp4\");\n}\n\n// Demo.Run() -> \"fun.avi->mp4+fun.avi.mp3\""
+          }
+        },
+        {
+          "id": "proxy",
+          "name": "Заместитель",
+          "intent": "Provide surrogate placeholder for another object to control access to it, add laziness, caching or protection.",
+          "problem": "Прямой доступ к объекту нежелателен: он слишком дорогой, находится удалённо или требует проверки прав.",
+          "solution": "Заместитель реализует тот же интерфейс, что и реальный объект, перехватывает вызовы и решает — пробросить их дальше, вернуть кэш или отказать.",
+          "applicability": [
+            "Ленивая инициализация тяжёлых ресурсов",
+            "Кэширование результатов частых запросов",
+            "Контроль доступа / авторизация, удалённая проксия (RPC)"
+          ],
+          "pros": [
+            "Клиент работает с тем же интерфейсом",
+            "Контроль и оптимизация доступа без изменения реального объекта",
+            "Логика доступа изолирована"
+          ],
+          "cons": [
+            "Лишний уровень опосредования",
+            "Усложнение кода, особенно для кэша и инвалидации"
+          ],
+          "diagram": {
+            "title": "Заместитель: кэш видеозапросов",
+            "nodes": [
+              {
+                "id": "subject",
+                "name": "IYouTubeClient",
+                "kind": "interface",
+                "members": [
+                  "GetVideo(id)"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "real",
+                "name": "YouTubeApi",
+                "kind": "class",
+                "members": [
+                  "GetVideo(id)"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "proxy",
+                "name": "CachedYouTubeProxy",
+                "kind": "class",
+                "members": [
+                  "-cache: Dictionary",
+                  "+GetVideo(id)"
+                ],
+                "col": 2,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "real",
+                "to": "subject",
+                "kind": "realization",
+                "label": null
+              },
+              {
+                "from": "proxy",
+                "to": "subject",
+                "kind": "realization",
+                "label": null
+              },
+              {
+                "from": "proxy",
+                "to": "real",
+                "kind": "dependency",
+                "label": "forwards"
+              }
+            ]
+          },
+          "code": {
+            "title": "Кэширующий прокси к внешнему API",
+            "language": "csharp",
+            "source": "public interface IYouTubeClient\n{\n    string GetVideo(int id);\n}\n\npublic sealed class YouTubeApi : IYouTubeClient\n{\n    public static int RequestCount;\n    public string GetVideo(int id) { RequestCount++; return $\"video-{id}\"; }\n}\n\n// Прокси: контролирует доступ + кэширует дорогие запросы.\npublic sealed class CachedYouTubeProxy : IYouTubeClient\n{\n    private readonly Dictionary<int, string> _cache = [];\n    public string GetVideo(int id)\n    {\n        if (_cache.TryGetValue(id, out var cached)) return cached + \"(cached)\";\n        var fresh = new YouTubeApi().GetVideo(id);\n        _cache[id] = fresh;\n        return fresh;\n    }\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        YouTubeApi.RequestCount = 0;\n        IYouTubeClient client = new CachedYouTubeProxy();\n        var first = client.GetVideo(7);\n        var second = client.GetVideo(7);\n        return $\"{first}|{second}|requests:{YouTubeApi.RequestCount}\";\n    }\n}\n\n// Demo.Run() -> \"video-7|video-7(cached)|requests:1\""
           }
         }
       ]
@@ -120,15 +1045,61 @@
           "diagram": {
             "title": "Strategy",
             "nodes": [
-              { "id": "strategy", "name": "ISortStrategy", "kind": "interface", "members": ["Sort(int[] data): int[]"], "col": 1, "row": 0 },
-              { "id": "quick", "name": "QuickSort", "kind": "class", "members": [], "col": 0, "row": 1 },
-              { "id": "bubble", "name": "BubbleSort", "kind": "class", "members": [], "col": 2, "row": 1 },
-              { "id": "context", "name": "Sorter", "kind": "class", "members": ["_strategy: ISortStrategy", "Run(int[]): int[]"], "col": 1, "row": 2 }
+              {
+                "id": "strategy",
+                "name": "ISortStrategy",
+                "kind": "interface",
+                "members": [
+                  "Sort(int[] data): int[]"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "quick",
+                "name": "QuickSort",
+                "kind": "class",
+                "members": [],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "bubble",
+                "name": "BubbleSort",
+                "kind": "class",
+                "members": [],
+                "col": 2,
+                "row": 1
+              },
+              {
+                "id": "context",
+                "name": "Sorter",
+                "kind": "class",
+                "members": [
+                  "_strategy: ISortStrategy",
+                  "Run(int[]): int[]"
+                ],
+                "col": 1,
+                "row": 2
+              }
             ],
             "links": [
-              { "from": "quick", "to": "strategy", "kind": "realization" },
-              { "from": "bubble", "to": "strategy", "kind": "realization" },
-              { "from": "context", "to": "strategy", "kind": "association", "label": "delegates" }
+              {
+                "from": "quick",
+                "to": "strategy",
+                "kind": "realization"
+              },
+              {
+                "from": "bubble",
+                "to": "strategy",
+                "kind": "realization"
+              },
+              {
+                "from": "context",
+                "to": "strategy",
+                "kind": "association",
+                "label": "delegates"
+              }
             ]
           },
           "code": {
@@ -136,6 +1107,485 @@
             "language": "csharp",
             "source": "public interface ISortStrategy\n{\n    int[] Sort(int[] data);\n}\n\npublic sealed class AscendingStrategy : ISortStrategy\n{\n    public int[] Sort(int[] data) => [.. data.OrderBy(x => x)];\n}\n\npublic sealed class DescendingStrategy : ISortStrategy\n{\n    public int[] Sort(int[] data) => [.. data.OrderByDescending(x => x)];\n}\n\npublic sealed class Sorter(ISortStrategy strategy)\n{\n    public int[] Run(int[] data) => strategy.Sort(data);\n}\n\npublic static class Demo\n{\n    public static int[] Run(int[] data, bool desc)\n    {\n        ISortStrategy strategy = desc ? new DescendingStrategy() : new AscendingStrategy();\n        return new Sorter(strategy).Run(data);\n    }\n}\n\n// Demo.Run([3,1,2], desc: false) -> [1,2,3]"
           }
+        },
+        {
+          "id": "chain-of-responsibility",
+          "diagram": {
+            "title": "Chain of Responsibility",
+            "nodes": [
+              {
+                "id": "handler",
+                "name": "SupportHandler",
+                "kind": "abstract",
+                "members": [
+                  "next: SupportHandler",
+                  "Handle(severity): string"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "first",
+                "name": "FirstLineSupport",
+                "kind": "class",
+                "members": [],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "second",
+                "name": "SecondLineSupport",
+                "kind": "class",
+                "members": [],
+                "col": 1,
+                "row": 1
+              },
+              {
+                "id": "manager",
+                "name": "ManagerSupport",
+                "kind": "class",
+                "members": [],
+                "col": 2,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "first",
+                "to": "handler",
+                "kind": "inheritance"
+              },
+              {
+                "from": "second",
+                "to": "handler",
+                "kind": "inheritance"
+              },
+              {
+                "from": "manager",
+                "to": "handler",
+                "kind": "inheritance"
+              },
+              {
+                "from": "handler",
+                "to": "handler",
+                "kind": "association",
+                "label": "next"
+              }
+            ]
+          },
+          "code": {
+            "language": "csharp",
+            "source": "using System;\n\npublic abstract class SupportHandler\n{\n    private SupportHandler next;\n\n    public SupportHandler SetNext(SupportHandler nxt) { next = nxt; return nxt; }\n\n    public string Handle(int severity)\n    {\n        if (CanHandle(severity)) return Resolve(severity);\n        if (next != null) return next.Handle(severity);\n        return \"none\";\n    }\n\n    protected abstract bool CanHandle(int severity);\n    protected abstract string Resolve(int severity);\n}\n\npublic sealed class FirstLineSupport : SupportHandler\n{\n    protected override bool CanHandle(int severity) => severity <= 1;\n    protected override string Resolve(int s) => \"first-line\";\n}\n\npublic sealed class SecondLineSupport : SupportHandler\n{\n    protected override bool CanHandle(int severity) => severity <= 2;\n    protected override string Resolve(int s) => \"second-line\";\n}\n\npublic sealed class ManagerSupport : SupportHandler\n{\n    protected override bool CanHandle(int severity) => severity <= 3;\n    protected override string Resolve(int s) => \"manager\";\n}\n\npublic static class Demo\n{\n    public static string Run(int severity)\n    {\n        var first = new FirstLineSupport();\n        var second = new SecondLineSupport();\n        var manager = new ManagerSupport();\n        first.SetNext(second).SetNext(manager);\n        return first.Handle(severity);\n    }\n}",
+            "demoEntry": "Demo.Run",
+            "title": "Тикеты поддержки"
+          },
+          "name": "Цепочка обязанностей",
+          "intent": "Позволяет передавать запросы по цепочке потенциальных обработчиков, пока один из них не обработает запрос.",
+          "problem": "Запрос должен обработать один из нескольких получателей, причём заранее неизвестно, какой именно. Привязывать отправителя ко всем обработчикам — хрупкое решение.",
+          "solution": "Превратить обработчиков в цепочку самостоятельных объектов. Каждый обработчик решает: обработать запрос самому или передать его следующему звену цепи.",
+          "applicability": [
+            "Несколько объектов могут обработать запрос, порядок важен",
+            "Классы обработчиков должны быть независимы и переиспользуемы",
+            "Набор обработчиков может меняться во время выполнения"
+          ],
+          "pros": [
+            "Слабая связанность: отправитель не знает конкретного обработчика",
+            "Единый интерфейс обработки; цепочку легко перестроить",
+            "Открыто/закрыто: новые обработчики без изменения существующих"
+          ],
+          "cons": [
+            "Запрос может остаться необработанным",
+            "Отладка трассировки по цепочке затруднена"
+          ]
+        },
+        {
+          "id": "command",
+          "diagram": {
+            "title": "Command",
+            "nodes": [
+              {
+                "id": "cmd",
+                "name": "ICommand",
+                "kind": "interface",
+                "members": [
+                  "Execute()",
+                  "Undo()"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "on",
+                "name": "TurnOnCommand",
+                "kind": "class",
+                "members": [
+                  "bulb: LightBulb"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "off",
+                "name": "TurnOffCommand",
+                "kind": "class",
+                "members": [
+                  "bulb: LightBulb"
+                ],
+                "col": 2,
+                "row": 1
+              },
+              {
+                "id": "invoker",
+                "name": "RemoteControl",
+                "kind": "class",
+                "members": [
+                  "history: Stack<ICommand>",
+                  "Press(cmd)",
+                  "ReleaseUndo()"
+                ],
+                "col": 1,
+                "row": 2
+              },
+              {
+                "id": "bulb",
+                "name": "LightBulb",
+                "kind": "class",
+                "members": [
+                  "On: bool",
+                  "TurnOn()",
+                  "TurnOff()"
+                ],
+                "col": 0,
+                "row": 2
+              }
+            ],
+            "links": [
+              {
+                "from": "on",
+                "to": "cmd",
+                "kind": "realization"
+              },
+              {
+                "from": "off",
+                "to": "cmd",
+                "kind": "realization"
+              },
+              {
+                "from": "invoker",
+                "to": "cmd",
+                "kind": "association",
+                "label": "executes"
+              },
+              {
+                "from": "on",
+                "to": "bulb",
+                "kind": "dependency"
+              },
+              {
+                "from": "off",
+                "to": "bulb",
+                "kind": "dependency"
+              }
+            ]
+          },
+          "code": {
+            "language": "csharp",
+            "source": "using System;\nusing System.Collections.Generic;\n\npublic interface ICommand\n{\n    void Execute();\n    void Undo();\n}\n\npublic sealed class LightBulb\n{\n    public bool On { get; private set; }\n    public void TurnOn() => On = true;\n    public void TurnOff() => On = false;\n}\n\npublic sealed class TurnOnCommand : ICommand\n{\n    private readonly LightBulb bulb;\n    public TurnOnCommand(LightBulb b) { bulb = b; }\n    public void Execute() => bulb.TurnOn();\n    public void Undo() => bulb.TurnOff();\n}\n\npublic sealed class TurnOffCommand : ICommand\n{\n    private readonly LightBulb bulb;\n    public TurnOffCommand(LightBulb b) { bulb = b; }\n    public void Execute() => bulb.TurnOff();\n    public void Undo() => bulb.TurnOn();\n}\n\npublic sealed class RemoteControl\n{\n    private readonly Stack<ICommand> history = new Stack<ICommand>();\n    public void Press(ICommand command)\n    {\n        command.Execute();\n        history.Push(command);\n    }\n    public void ReleaseUndo()\n    {\n        if (history.Count > 0) history.Pop().Undo();\n    }\n}\n\npublic static class Demo\n{\n    public static string Run(string script)\n    {\n        var bulb = new LightBulb();\n        var remote = new RemoteControl();\n        foreach (var step in script.Split(','))\n        {\n            if (step == \"on\") remote.Press(new TurnOnCommand(bulb));\n            else if (step == \"off\") remote.Press(new TurnOffCommand(bulb));\n            else if (step == \"undo\") remote.ReleaseUndo();\n        }\n        return bulb.On ? \"on\" : \"off\";\n    }\n}",
+            "demoEntry": "Demo.Run",
+            "title": "Пульт со светом"
+          },
+          "name": "Команда",
+          "intent": "Превращает запросы в объекты, позволяя передавать их как аргументы, ставить запросы в очередь, логировать и отменять операции.",
+          "problem": "Нужно параметризовать объекты действиями, ставить действия в очередь или поддерживать отмену (Ctrl+Z). Встроить такую логику в классы-отправители невозможно аккуратно.",
+          "solution": "Каждое действие — отдельный объект-команда с методами Execute/Undo. Отправитель вызывает команду, не зная получателя; история команд даёт отмену.",
+          "applicability": [
+            "Действия нужно логировать, ставить в очередь или выполнять отложенно",
+            "Требуется поддержка отмены операций",
+            "Конфигурируемые кнопки/меню/горячие клавиши"
+          ],
+          "pros": [
+            "Чёткое разделение отправителя и получателя",
+            "Легко добавлять новые команды и макросы из существующих",
+            "Отмена/повтор реализуются естественно"
+          ],
+          "cons": [
+            "Рост числа классов для простых действий",
+            "Дублирование кода при схожих командах"
+          ]
+        },
+        {
+          "id": "iterator",
+          "diagram": {
+            "title": "Iterator",
+            "nodes": [
+              {
+                "id": "iter",
+                "name": "IIterator<T>",
+                "kind": "interface",
+                "members": [
+                  "HasNext(): bool",
+                  "Next(): T"
+                ],
+                "col": 0,
+                "row": 0
+              },
+              {
+                "id": "agg",
+                "name": "IAggregate<T>",
+                "kind": "interface",
+                "members": [
+                  "CreateIterator(): IIterator<T>"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "news",
+                "name": "NewsFeed",
+                "kind": "class",
+                "members": [
+                  "items: List<string>",
+                  "CreateIterator()"
+                ],
+                "col": 1,
+                "row": 1
+              },
+              {
+                "id": "it",
+                "name": "NewsIterator",
+                "kind": "class",
+                "members": [
+                  "index: int",
+                  "HasNext()",
+                  "Next()"
+                ],
+                "col": 0,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "it",
+                "to": "iter",
+                "kind": "realization"
+              },
+              {
+                "from": "news",
+                "to": "agg",
+                "kind": "realization"
+              },
+              {
+                "from": "news",
+                "to": "it",
+                "kind": "dependency",
+                "label": "creates"
+              }
+            ]
+          },
+          "code": {
+            "language": "csharp",
+            "source": "using System.Collections;\nusing System.Collections.Generic;\n\npublic interface IIterator<T>\n{\n    bool HasNext();\n    T Next();\n}\n\npublic interface IAggregate<T>\n{\n    IIterator<T> CreateIterator();\n}\n\npublic sealed class NewsFeed : IAggregate<string>\n{\n    private readonly List<string> items = new List<string>();\n    public void Add(string item) => items.Add(item);\n\n    public IIterator<string> CreateIterator() => new NewsIterator(items);\n\n    private sealed class NewsIterator : IIterator<string>\n    {\n        private readonly IList<string> data;\n        private int index = -1;\n        public NewsIterator(IList<string> d) { data = d; }\n        public bool HasNext() => index + 1 < data.Count;\n        public string Next()\n        {\n            index++;\n            return data[index];\n        }\n    }\n}\n\npublic static class Demo\n{\n    public static string Run(string joined)\n    {\n        var feed = new NewsFeed();\n        foreach (var s in joined.Split('|')) feed.Add(s);\n        var it = feed.CreateIterator();\n        var result = new List<string>();\n        while (it.HasNext()) result.Add(it.Next());\n        return string.Join(\",\", result);\n    }\n}",
+            "demoEntry": "Demo.Run",
+            "title": "Лента новостей"
+          },
+          "name": "Итератор",
+          "intent": "Даёт способ последовательно обходить сложную коллекцию, не раскрывая её внутреннее устройство.",
+          "problem": "У коллекции может быть несколько способов обхода (по порядку, только прочитанные, рекурсивно по дереву). Встраивать каждый обход в саму коллекцию — нарушать SRP и плодить дублирование.",
+          "solution": "Вынести обход в отдельный объект-итератор с интерфейсом HasNext/Next. Коллекция реализует метод создания итератора и скрывает своё хранилище.",
+          "applicability": [
+            "Сложные структуры данных, обход которых не тривиален",
+            "Нужно несколько вариантов обхода одной коллекции",
+            "Желание скрыть представление коллекции от клиента"
+          ],
+          "pros": [
+            "Единообразный обход разных коллекций",
+            "Инкапсуляция: клиент не видит хранилище",
+            "Несколько итераторов одновременно над одной коллекцией"
+          ],
+          "cons": [
+            "Для простых списков — оверинжиниринг",
+            "Итератору сложно работать с изменяемой коллекцией"
+          ]
+        },
+        {
+          "id": "mediator",
+          "diagram": {
+            "title": "Mediator",
+            "nodes": [
+              {
+                "id": "med",
+                "name": "ChatRoom",
+                "kind": "class",
+                "members": [
+                  "ShowMessage(from,to,msg)"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "a",
+                "name": "User: Ann",
+                "kind": "class",
+                "members": [
+                  "Send(to,msg)",
+                  "Receive(msg)"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "b",
+                "name": "User: Bob",
+                "kind": "class",
+                "members": [],
+                "col": 1,
+                "row": 1
+              },
+              {
+                "id": "c",
+                "name": "User: Cat",
+                "kind": "class",
+                "members": [],
+                "col": 2,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "a",
+                "to": "med",
+                "kind": "dependency",
+                "label": "sends via"
+              },
+              {
+                "from": "b",
+                "to": "med",
+                "kind": "dependency"
+              },
+              {
+                "from": "c",
+                "to": "med",
+                "kind": "dependency"
+              }
+            ]
+          },
+          "code": {
+            "language": "csharp",
+            "source": "using System.Collections.Generic;\n\npublic abstract class ChatRoom\n{\n    public static void ShowMessage(User from, User to, string message)\n    {\n        // «центр» логирует маршрутизацию; пользователи не знают друг друга напрямую\n        to.Receive(from.Name + \": \" + message);\n    }\n}\n\npublic sealed class User\n{\n    public User(string name) { Name = name; Received.Clear(); }\n    public string Name { get; }\n    public List<string> Received { get; } = new List<string>();\n    public void Send(User to, string message) => ChatRoom.ShowMessage(this, to, message);\n    public void Receive(string message) => Received.Add(message);\n}\n\npublic static class Demo\n{\n    public static string Run(string script)\n    {\n        var ann = new User(\"Ann\");\n        var bob = new User(\"Bob\");\n        var cat = new User(\"Cat\");\n        foreach (var step in script.Split(','))\n        {\n            var parts = step.Split('>');\n            var msg = parts[1];\n            if (parts[0] == \"A\") ann.Send(bob, msg);\n            else if (parts[0] == \"B\") bob.Send(cat, msg);\n            else if (parts[0] == \"C\") cat.Send(ann, msg);\n        }\n        return ann.Received.Count + \"-\" + bob.Received.Count + \"-\" + cat.Received.Count;\n    }\n}",
+            "demoEntry": "Demo.Run",
+            "title": "Чат-комната"
+          },
+          "name": "Посредник",
+          "intent": "Ограничивает прямые связи между множеством классов, заставляя их общаться через единый посредник.",
+          "problem": "20 классов общаются друг с другом напрямую — это 400 связей. Любое изменение одного класса затрагивает десятки других, переиспользовать классы по отдельности невозможно.",
+          "solution": "Вынести групповое взаимодействие в отдельный объект-посредник. Классы общаются только с ним, а посредник знает, кто и на что должен реагировать.",
+          "applicability": [
+            "Много классов хаотично ссылаются друг на друга",
+            "Класс трудно переиспользовать из-за переплетённых связей",
+            "Нужно варьировать поведение взаимодействий без правок классов"
+          ],
+          "pros": [
+            "Распределённая логика собирается в одном месте",
+            "Коллеги развязаны, легче переиспользовать",
+            "Легко добавлять новых участников"
+          ],
+          "cons": [
+            "Посредник может стать «богом»",
+            "Централизация усложняет понимание потока событий"
+          ]
+        },
+        {
+          "id": "observer",
+          "diagram": {
+            "title": "Observer",
+            "nodes": [
+              {
+                "id": "subj",
+                "name": "EventManager",
+                "kind": "class",
+                "members": [
+                  "listeners",
+                  "Subscribe()",
+                  "Notify()"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "obs",
+                "name": "IObserver",
+                "kind": "interface",
+                "members": [
+                  "Update(type,data)"
+                ],
+                "col": 0,
+                "row": 0
+              },
+              {
+                "id": "email",
+                "name": "EmailAlert",
+                "kind": "class",
+                "members": [],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "sms",
+                "name": "SmsAlert",
+                "kind": "class",
+                "members": [],
+                "col": 1,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "email",
+                "to": "obs",
+                "kind": "realization"
+              },
+              {
+                "from": "sms",
+                "to": "obs",
+                "kind": "realization"
+              },
+              {
+                "from": "subj",
+                "to": "obs",
+                "kind": "association",
+                "label": "notifies"
+              },
+              {
+                "from": "subj",
+                "to": "subj",
+                "kind": "dependency",
+                "label": "stores list"
+              }
+            ]
+          },
+          "code": {
+            "language": "csharp",
+            "source": "using System;\nusing System.Collections.Generic;\n\npublic interface IObserver\n{\n    void Update(string eventType, string data);\n}\n\npublic sealed class EventManager\n{\n    private readonly Dictionary<string, List<IObserver>> listeners =\n        new Dictionary<string, List<IObserver>>();\n\n    public void Subscribe(string type, IObserver observer)\n    {\n        if (!listeners.TryGetValue(type, out var list))\n        {\n            list = new List<IObserver>();\n            listeners[type] = list;\n        }\n        list.Add(observer);\n    }\n\n    public void Unsubscribe(string type, IObserver observer)\n    {\n        if (listeners.TryGetValue(type, out var list)) list.Remove(observer);\n    }\n\n    public void Notify(string type, string data)\n    {\n        if (listeners.TryGetValue(type, out var list))\n            foreach (var o in list.ToArray()) o.Update(type, data);\n    }\n}\n\npublic sealed class EmailAlert : IObserver\n{\n    public List<string> Inbox { get; } = new List<string>();\n    public void Update(string eventType, string data) => Inbox.Add(\"email:\" + data);\n}\n\npublic sealed class SmsAlert : IObserver\n{\n    public List<string> Phone { get; } = new List<string>();\n    public void Update(string eventType, string data) => Phone.Add(\"sms:\" + data);\n}\n\npublic static class Demo\n{\n    public static string Run(bool unsubscribeBeforeNotify)\n    {\n        var manager = new EventManager();\n        var email = new EmailAlert();\n        var sms = new SmsAlert();\n        manager.Subscribe(\"user-registration\", email);\n        manager.Subscribe(\"user-registration\", sms);\n        if (unsubscribeBeforeNotify) manager.Unsubscribe(\"user-registration\", sms);\n        manager.Notify(\"user-registration\", \"Anna\");\n        return email.Inbox.Count + \"-\" + sms.Phone.Count;\n    }\n}",
+            "demoEntry": "Demo.Run",
+            "title": "Уведомления о регистрации"
+          },
+          "name": "Наблюдатель",
+          "intent": "Описывает механизм подписки, который позволяет одним объектам следить за событиями в других и автоматически реагировать.",
+          "problem": "При изменении состояния одного объекта нужно уведомить множество зависимых, не создавая жёсткой связи между ними (например, обновить UI, отправить уведомления, записать лог).",
+          "solution": "Интерфейс Наблюдателя с методом Update; субъект хранит список подписчиков и рассылает события. Подписка/отписка выполняются в любой момент.",
+          "applicability": [
+            "Один объект должен уведомлять другие без знания их конкретных типов",
+            "Нужно подписываться и отписываться динамически",
+            "Изменение должно каскадно распространяться по графу объектов"
+          ],
+          "pros": [
+            "Субъект и наблюдатели слабо связаны",
+            "Управление событиями «из коробки», автоматическое обновление"
+          ],
+          "cons": [
+            "Уведомления могут быть непредсказуемы по порядку",
+            "Риск утечек памяти при незакрытых подписках"
+          ]
         }
       ]
     }
