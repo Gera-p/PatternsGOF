@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DesignPatterns.Core\DesignPatterns.Core.csproj" />
+    <ProjectReference Include="..\..\tools\DesignPatterns.Tools.ExampleCompiler\DesignPatterns.Tools.ExampleCompiler.csproj" />
   </ItemGroup>
 
   <ItemGroup>
