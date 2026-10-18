@@ -13,9 +13,56 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
   </ItemGroup>
 
-  <!-- Контент GoF (Этап 4) лежит рядом с кодом и доступен и приложениям, и тестам. -->
+  <!--
+    Контент GoF (Этап 4) лежит рядом с кодом и доступен и приложению, и тестам.
+    ВАЖНО: имена файлов содержат "ru"/"en" как часть имени культуры (*.ru.json),
+    поэтому MSBuild сателлит-логика перекладывала их в satellite assembly
+    DesignPatterns.Core.ru/en.resources.dll. Явно фиксируем LogicalName,
+    чтобы оба документа остались в основной сборке под предсказуемыми именами.
+  -->
   <ItemGroup>
-    <EmbeddedResource Include="Content/data/**/*.json" />
+    <!-- Culture-agnostic контент: см. Target ниже (надёжный способ для любых SDK) -->
+    <EmbeddedResource Include="Content/data/patterns.ru.json" />
+    <EmbeddedResource Include="Content/data/patterns.en.json" />
   </ItemGroup>
+
+  <!--
+    MSBuild по эвристике именует файлы вида *.ru.json/*.en.json "культурными"
+    и кладёт их в satellite-сборки DesignPatterns.Core.ru/en.resources.dll,
+    из-за чего ContentLoader не находит их в основной сборке.
+    Надёжный обход (не зависит от Cultured/LogicalName): переименовываем исходники
+    в culture-neutral имена patterns-ru.json / patterns-en.json.
+  -->
+  <Target Name="StageCultureNeutralContent" BeforeTargets="CreateManifestResourceNames">
+    <PropertyGroup>
+      <_DpStagedContentDir>$(IntermediateOutputPath)content\</_DpStagedContentDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_DpContentSrc Include="$(MSBuildThisFileDirectory)Content\data\patterns.ru.json">
+        <StagedName>patterns-ru.json</StagedName>
+      </_DpContentSrc>
+      <_DpContentSrc Include="$(MSBuildThisFileDirectory)Content\data\patterns.en.json">
+        <StagedName>patterns-en.json</StagedName>
+      </_DpContentSrc>
+    </ItemGroup>
+    <MakeDir Directories="$(_DpStagedContentDir)" />
+    <Copy SourceFiles="@(_DpContentSrc)"
+          DestinationFiles="@(_DpContentSrc->'$(_DpStagedContentDir)%(StagedName)')"
+          SkipUnchangedFiles="true" />
+    <ItemGroup>
+      <EmbeddedResource Remove="@(EmbeddedResource)" Condition="'%(Filename)' == 'patterns' AND ('%(Extension)' == '.ru.json' OR '%(Extension)' == '.en.json')" />
+      <EmbeddedResource Include="$(_DpStagedContentDir)patterns-ru.json" LogicalName="DesignPatterns.Core.Content.data.patterns.ru.json" />
+      <EmbeddedResource Include="$(_DpStagedContentDir)patterns-en.json" LogicalName="DesignPatterns.Core.Content.data.patterns.en.json" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    Косвенный эффект: наличие *.ru/*.en файлов включает в проекте "резидентные культуры",
+    из-за чего тестовый раннер пытается загрузить satellite-сборку ru (которой больше нет).
+    Отключаем генерацию нейтрального языка, чтобы всё жило в основной DLL.
+  -->
+  <PropertyGroup>
+    <GenerateNeutralResourcesLanguageAttribute>false</GenerateNeutralResourcesLanguageAttribute>
+  </PropertyGroup>
 
 </Project>

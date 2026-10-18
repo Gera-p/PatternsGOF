@@ -20,10 +20,17 @@ public static class ContentLoader
 
     public static ContentDocument LoadEmbedded(string fileName, Assembly assembly)
     {
+        // Точное совпадение по хвосту имени (с точкой перед именем файла),
+        // чтобы "patterns.ru.json" не матчился на "...data.patterns.json" из satellite-сборки.
         var resourceName = assembly.GetManifestResourceNames()
-            .FirstOrDefault(n => n.EndsWith(fileName, StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException(
-                $"Embedded resource '{fileName}' not found in {assembly.GetName().Name}.");
+            .FirstOrDefault(n => n.EndsWith("." + fileName, StringComparison.OrdinalIgnoreCase)
+                              || string.Equals(n, fileName, StringComparison.OrdinalIgnoreCase));
+        if (resourceName is null)
+        {
+            var available = string.Join(", ", assembly.GetManifestResourceNames());
+            throw new InvalidOperationException(
+                $"Embedded resource '{fileName}' not found in {assembly.GetName().Name}. Available: [{available}].");
+        }
 
         using var stream = assembly.GetManifestResourceStream(resourceName)!;
         return LoadFromStream(stream, fileName);
