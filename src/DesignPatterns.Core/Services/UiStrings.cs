@@ -11,15 +11,15 @@ public static class UiStrings
     public static IReadOnlyDictionary<AppLanguage, IReadOnlyDictionary<string, string>> All { get; } =
         new Dictionary<AppLanguage, IReadOnlyDictionary<string, string>>
         {
-            [AppLanguage.Russian] = Ru,
-            [AppLanguage.English] = En,
+            [AppLanguage.Russian] = Ru!,
+            [AppLanguage.English] = En!,
         };
 
     /// <summary>Создаёт сервис локализации со строками UI (RU по умолчанию).</summary>
     public static ILocalizationService CreateDefaultService(AppLanguage initial = AppLanguage.Russian)
         => new DictionaryLocalizationService(All, initial);
 
-    private static readonly Dictionary<string, string> Ru = new(StringComparer.Ordinal)
+    private static readonly IReadOnlyDictionary<string, string> Ru = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["MainTitle"] = "Паттерны проектирования",
         ["SearchPlaceholder"] = "Поиск по названию или описанию…",
@@ -37,7 +37,7 @@ public static class UiStrings
         ["BehavioralCategory"] = "Поведенческие паттерны",
     };
 
-    private static readonly Dictionary<string, string> En = new(StringComparer.Ordinal)
+    private static readonly IReadOnlyDictionary<string, string> En = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["MainTitle"] = "Design Patterns",
         ["SearchPlaceholder"] = "Search by name or description…",
