@@ -22,7 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DesignPatterns.Core\DesignPatterns.Core.csproj" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.9" />
   </ItemGroup>
 
 
