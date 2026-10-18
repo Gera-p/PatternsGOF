@@ -146,48 +146,113 @@ public static class ExampleCompilationService
     /// <summary>
     /// Исполняет Demo.Run(...) с явными аргументами (по позициям). Результат
     /// форматируется так же, как в ExecuteDemoRun: массивы — через "a,b,c".
+    /// Аргументы могут быть получены из другой компиляции того же исходника
+    /// (см. CreateDemoInstance): типы идентичны по имени, но reside в разных
+    /// assembly, поэтому IsInstanceOfType ложно. Для таких случаев выполняется
+    /// повторная загрузка байткода из кэша — тот же assembly = те же RuntimeType.
     /// </summary>
     public static string ExecuteDemoRunWithArgs(string patternId, string source, params object?[] args)
     {
-        var syntaxTree = ParseExample(source);
-
-        var compilation = CSharpCompilation.Create(
-            assemblyName: $"PatternDemo_{patternId}_{Guid.NewGuid():N}",
-            syntaxTrees: [syntaxTree],
-            references: ReferencePaths.Value.Select(r => MetadataReference.CreateFromFile(r)),
-            options: new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        using var ms = new MemoryStream();
-        var emit = compilation.Emit(ms);
-        if (!emit.Success)
-        {
-            var errors = string.Join(Environment.NewLine,
-                emit.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
-            throw new InvalidOperationException($"Example '{patternId}' failed to compile:{Environment.NewLine}{errors}");
-        }
-
-        ms.Seek(0, SeekOrigin.Begin);
-        var assembly = Assembly.Load(ms.ToArray());
+        var assembly = CompileAndLoad(source, patternId);
         var demoType = assembly.GetTypes().First(t => t.Name == "Demo");
         var runMethod = demoType.GetMethods(BindingFlags.Public | BindingFlags.Static)
             .First(m => m.Name == "Run");
 
-        // Приведение boxed-аргументов к параметрам метода (int[] -> array и т.п.).
         var parameters = runMethod.GetParameters();
         if (parameters.Length != args.Length)
             throw new ArgumentException(
                 $"Demo.Run of '{patternId}' expects {parameters.Length} arg(s), got {args.Length}.");
+
         var coerced = new object?[args.Length];
         for (var i = 0; i < args.Length; i++)
         {
             var value = args[i];
             var targetType = parameters[i].ParameterType;
-            coerced[i] = value is null || targetType.IsInstanceOfType(value)
-                ? value
-                : Convert.ChangeType(value, Nullable.GetUnderlyingType(targetType) ?? targetType);
+
+            if (value is null || targetType.IsInstanceOfType(value))
+            {
+                coerced[i] = value;
+                continue;
+            }
+
+            // Cross-assembly identity: значение создано из другой компиляции того же
+            // примера. Если имя типа значения совпадает с именем параметра (или он
+            // является его базовым классом/интерфейсом в том же исходнике) —
+            // пересоздаём экземпляр внутри КЭШИРОВАННОЙ сборки этого же паттерна.
+            var valueType = value.GetType();
+            if (IsSameSourceDeclaredType(valueType, targetType))
+            {
+                coerced[i] = CreateDemoInstanceFromCache(patternId, source, valueType.Name);
+                continue;
+            }
+
+            // Примитивы/строки — стандартное приведение.
+            coerced[i] = Convert.ChangeType(value, Nullable.GetUnderlyingType(targetType) ?? targetType);
         }
 
         return Format(runMethod.Invoke(null, coerced));
+    }
+
+    private static bool IsSameSourceDeclaredType(Type valueType, Type targetType)
+    {
+        if (string.Equals(valueType.Name, targetType.Name, StringComparison.Ordinal))
+            return true;
+
+        // Целевой тип — абстракция из того же примера: проверяем, что valueType
+        // реализует/наследует targetType ПО ИМЕНИ в графе наследования valueType.
+        for (var t = valueType.BaseType; t is not null && t != typeof(object); t = t.BaseType)
+            if (string.Equals(t.Name, targetType.Name, StringComparison.Ordinal))
+                return true;
+
+        foreach (var iface in valueType.GetInterfaces())
+            if (string.Equals(iface.Name, targetType.Name, StringComparison.Ordinal))
+                return true;
+
+        return false;
+    }
+
+    // Кэш байткода компиляции на исходник: гарантирует, что все reflection-операции над
+    // одним примером используют ОДНУ сборку (одинаковые RuntimeType'ы).
+    private static readonly Dictionary<string, Assembly> AssemblyCache = new();
+    private static readonly object AssemblyCacheLock = new();
+
+    private static Assembly CompileAndLoad(string source, string patternId)
+    {
+        var key = patternId + "|" + source.GetHashCode(StringComparison.Ordinal);
+        lock (AssemblyCacheLock)
+        {
+            if (AssemblyCache.TryGetValue(key, out var cached))
+                return cached;
+
+            var syntaxTree = ParseExample(source);
+            var compilation = CSharpCompilation.Create(
+                assemblyName: $"PatternDemo_{patternId}_{Guid.NewGuid():N}",
+                syntaxTrees: [syntaxTree],
+                references: ReferencePaths.Value.Select(r => MetadataReference.CreateFromFile(r)),
+                options: new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+            using var ms = new MemoryStream();
+            var emit = compilation.Emit(ms);
+            if (!emit.Success)
+            {
+                var errors = string.Join(Environment.NewLine,
+                    emit.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+                throw new InvalidOperationException($"Example '{patternId}' failed to compile:{Environment.NewLine}{errors}");
+            }
+
+            ms.Seek(0, SeekOrigin.Begin);
+            var assembly = Assembly.Load(ms.ToArray());
+            AssemblyCache[key] = assembly;
+            return assembly;
+        }
+    }
+
+    private static object CreateDemoInstanceFromCache(string patternId, string source, string typeName)
+    {
+        var assembly = CompileAndLoad(source, patternId);
+        var type = assembly.GetTypes().FirstOrDefault(t => t.Name == typeName)
+            ?? throw new InvalidOperationException($"Type '{typeName}' not found in cached example '{patternId}'.");
+        return Activator.CreateInstance(type)!;
     }
 
     private static string Format(object? result) => result switch

@@ -512,6 +512,508 @@
             "language": "csharp",
             "source": "public interface ILogger\n{\n    void Log(string message);\n    IReadOnlyList<string> Entries { get; }\n}\n\n// Старый SDK с неудобным API (его менять нельзя)\npublic sealed class OldLogSdk\n{\n    private readonly List<string> _lines = [];\n    public void WriteLine(string message, int level) => _lines.Add($\"L{level}: {message}\");\n    public IReadOnlyList<string> Dump() => _lines;\n}\n\npublic sealed class LegacyLoggerAdapter : ILogger\n{\n    private readonly OldLogSdk _legacy = new();\n\n    public void Log(string message) => _legacy.WriteLine(message, level: 1);\n\n    public IReadOnlyList<string> Entries => _legacy.Dump();\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        ILogger logger = new LegacyLoggerAdapter();\n        logger.Log(\"hello\");\n        return string.Join(\"|\", logger.Entries); // \"L1: hello\"\n    }\n}\n\n// Console.WriteLine(Demo.Run()); // L1: hello"
           }
+        },
+        {
+          "id": "bridge",
+          "name": "Мост",
+          "intent": "Разделяет абстракцию и её реализацию по двум независимым иерархиям, которые можно развивать отдельно.",
+          "problem": "Жёсткая связь между классом-абстракцией и классами-реализациями приводит к взрыву числа подклассов при добавлении новой платформы или варианта.",
+          "solution": "Абстракция хранит ссылку на объект реализации (интерфейс) и делегирует ей работу. Обе стороны общаются только через общий контракт и развиваются независимо.",
+          "applicability": [
+            "Нужно отвязать абстракцию от реализации (кроссплатформенность)",
+            "Хотите менять реализации во время выполнения",
+            "Две orthogonal'ные оси вариативности (форма × API рисования)"
+          ],
+          "pros": [
+            "Реализации и абстракции можно расширять независимо",
+            "Скрытие деталей реализации от клиента",
+            "Подмена поведения без пересборки иерархии"
+          ],
+          "cons": [
+            "Усложнение кода из-за разделения на две иерархии",
+            "Клиенту нужно знать о обеих иерархиях"
+          ],
+          "diagram": {
+            "title": "Мост: Shape ↔ DrawAPI",
+            "nodes": [
+              {
+                "id": "abstraction",
+                "name": "Shape",
+                "kind": "abstract",
+                "members": [
+                  "#Api: IDrawApi",
+                  "Render()"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "refined1",
+                "name": "Circle",
+                "kind": "class",
+                "members": [
+                  "Render()"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "refined2",
+                "name": "Dot",
+                "kind": "class",
+                "members": [
+                  "Render()"
+                ],
+                "col": 2,
+                "row": 1
+              },
+              {
+                "id": "implementor",
+                "name": "IDrawApi",
+                "kind": "interface",
+                "members": [
+                  "DrawCircle(r)",
+                  "DrawDot(x,y)"
+                ],
+                "col": 1,
+                "row": 2
+              },
+              {
+                "id": "concrete1",
+                "name": "Raster16Api",
+                "kind": "class",
+                "members": [],
+                "col": 0,
+                "row": 3
+              },
+              {
+                "id": "concrete2",
+                "name": "VectorApi",
+                "kind": "class",
+                "members": [],
+                "col": 2,
+                "row": 3
+              }
+            ],
+            "links": [
+              {
+                "from": "refined1",
+                "to": "abstraction",
+                "kind": "inheritance",
+                "label": null
+              },
+              {
+                "from": "refined2",
+                "to": "abstraction",
+                "kind": "inheritance",
+                "label": null
+              },
+              {
+                "from": "abstraction",
+                "to": "implementor",
+                "kind": "association",
+                "label": "uses"
+              },
+              {
+                "from": "concrete1",
+                "to": "implementor",
+                "kind": "realization",
+                "label": null
+              },
+              {
+                "from": "concrete2",
+                "to": "implementor",
+                "kind": "realization",
+                "label": null
+              }
+            ]
+          },
+          "code": {
+            "title": "Фигуры поверх разных графических API",
+            "language": "csharp",
+            "source": "public interface IDrawApi\n{\n    string DrawCircle(double radius);\n    string DrawDot(double x, double y);\n}\n\npublic sealed class Raster16Api : IDrawApi\n{\n    public string DrawCircle(double radius) => $\"r16 circle {radius:F1}\";\n    public string DrawDot(double x, double y) => $\"r16 dot {x:F1},{y:F1}\";\n}\n\npublic sealed class VectorApi : IDrawApi\n{\n    public string DrawCircle(double radius) => $\"vec circle {radius:F1}\";\n    public string DrawDot(double x, double y) => $\"vec dot {x:F1},{y:F1}\";\n}\n\n// Абстракция не привязана к конкретной реализации API.\npublic abstract class Shape\n{\n    protected Shape(IDrawApi api) => Api = api;\n    protected IDrawApi Api { get; }\n    public abstract string Render();\n}\n\npublic sealed class Circle : Shape\n{\n    private readonly double _radius;\n    public Circle(double radius, IDrawApi api) : base(api) => _radius = radius;\n    public override string Render() => Api.DrawCircle(_radius);\n}\n\npublic sealed class Dot : Shape\n{\n    private readonly double _x, _y;\n    public Dot(double x, double y, IDrawApi api) : base(api) { _x = x; _y = y; }\n    public override string Render() => Api.DrawDot(_x, _y);\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        var shapes = new List<Shape>\n        {\n            new Circle(2, new Raster16Api()),\n            new Circle(2, new VectorApi()),\n            new Dot(1, 1, new VectorApi()),\n        };\n        return string.Join(\"|\", shapes.ConvertAll(s => s.Render()));\n    }\n}\n\n// Demo.Run() -> \"r16 circle 2.0|vec circle 2.0|vec dot 1.0,1.0\""
+          }
+        },
+        {
+          "id": "composite",
+          "name": "Компоновщик",
+          "intent": "Компонурует объекты в древовидную структуру «часть-целое», позволяя клиенту одинаково работать с отдельными объектами и их композициями.",
+          "problem": "Клиенту нужно обрабатывать и одиночные объекты, и группы объектов — при этом код дублирует логику для каждого вида, а обход дерева усложняется.",
+          "solution": "Общий компонентный интерфейс реализуют и листья, и контейнеры. Контейнер хранит коллекцию компонентов и рекурсивно делегирует им операции.",
+          "applicability": [
+            "Предметная область естественным образом образует дерево (папки, UI, меню)",
+            "Клиент должен одинаково трактовать одиночные объекты и композиции",
+            "Нужна единая точка рекурсивного обхода"
+          ],
+          "pros": [
+            "Единый интерфейс для листьев и контейнеров",
+            "Новые типы компонентов легко добавлять",
+            "Рекурсивные операции пишутся один раз"
+          ],
+          "cons": [
+            "Сложно ограничить состав компонентов",
+            "Избыочно общий интерфейс для специфичных операций"
+          ],
+          "diagram": {
+            "title": "Компоновщик: IComponent",
+            "nodes": [
+              {
+                "id": "component",
+                "name": "IComponent",
+                "kind": "interface",
+                "members": [
+                  "GetCost()",
+                  "Describe()"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "leaf",
+                "name": "Leaf",
+                "kind": "class",
+                "members": [
+                  "_name",
+                  "_cost"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "composite",
+                "name": "Box",
+                "kind": "class",
+                "members": [
+                  "_children: List<IComponent>",
+                  "Add()"
+                ],
+                "col": 2,
+                "row": 1
+              },
+              {
+                "id": "child",
+                "name": "IComponent*",
+                "kind": "interface",
+                "members": [
+                  "(дочерние узлы)"
+                ],
+                "col": 2,
+                "row": 2
+              }
+            ],
+            "links": [
+              {
+                "from": "leaf",
+                "to": "component",
+                "kind": "realization",
+                "label": null
+              },
+              {
+                "from": "composite",
+                "to": "component",
+                "kind": "realization",
+                "label": null
+              },
+              {
+                "from": "composite",
+                "to": "child",
+                "kind": "composition",
+                "label": "holds"
+              }
+            ]
+          },
+          "code": {
+            "title": "Коробки и предметы внутри",
+            "language": "csharp",
+            "source": "public interface IComponent\n{\n    int GetCost();\n    string Describe();\n}\n\n// Лист — базовый строительный блок.\npublic sealed class Leaf : IComponent\n{\n    private readonly string _name;\n    private readonly int _cost;\n    public Leaf(string name, int cost) { _name = name; _cost = cost; }\n    public int GetCost() => _cost;\n    public string Describe() => $\"{_name}:{_cost}\";\n}\n\n// Контейнер: хранит компоненты и рекурсивно агрегирует их поведение.\npublic sealed class Box : IComponent\n{\n    private readonly string _name;\n    private readonly List<IComponent> _children = [];\n    public Box(string name) => _name = name;\n    public Box Add(IComponent component) { _children.Add(component); return this; }\n    public int GetCost() => _children.Sum(c => c.GetCost());\n    public string Describe() => $\"{_name}[{string.Join(\",\", _children.ConvertAll(c => c.Describe()))}]\";\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        // Древо: коробка с двумя листами и вложенной коробкой.\n        var small = new Box(\"small\").Add(new Leaf(\"ring\", 5)).Add(new Leaf(\"coin\", 3));\n        var big = new Box(\"big\").Add(new Leaf(\"sword\", 10)).Add(small);\n        return $\"{big.GetCost()}|{big.Describe()}\";\n    }\n}\n\n// Demo.Run() -> \"18|big[sword:10,small[ring:5,coin:3]]\""
+          }
+        },
+        {
+          "id": "decorator",
+          "name": "Decorator",
+          "intent": "Динамически добавляет объекту новое поведение, оборачивая его в объект-декоратор с тем же интерфейсом.",
+          "problem": "Наследование для каждого варианта поведения порождает огромное число подклассов, которые невозможно комбинировать произвольно.",
+          "solution": "Класс-декоратор содержит ссылку на оборачиваемый объект, реализует тот же интерфейс и дополняет/переопределяет его поведение. Декораторы можно наслаивать в любом порядке.",
+          "applicability": [
+            "Поведение нужно добавлять/снимать на лету",
+            "Прямое наследование неудобно или недоступно (sealed-классы)",
+            "Требуется свободная комбинация «прикрас»"
+          ],
+          "pros": [
+            "Гибче наследования: варианты комбинируются композицией",
+            "Новое поведение без изменения существующих классов",
+            "Соответствует Open/Closed"
+          ],
+          "cons": [
+            "Много мелких объектов-обёрток",
+            "Отладка цепочек декораторов требует внимания"
+          ],
+          "diagram": {
+            "title": "Декоратор: цепочка INotification",
+            "nodes": [
+              {
+                "id": "component",
+                "name": "INotification",
+                "kind": "interface",
+                "members": [
+                  "Content"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "concrete",
+                "name": "SimpleNotification",
+                "kind": "class",
+                "members": [
+                  "Content"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "decorator",
+                "name": "NotificationDecorator",
+                "kind": "abstract",
+                "members": [
+                  "-_wrappee: INotification",
+                  "+Content"
+                ],
+                "col": 2,
+                "row": 1
+              },
+              {
+                "id": "d1",
+                "name": "CriticalDecorator",
+                "kind": "class",
+                "members": [
+                  "Content"
+                ],
+                "col": 1,
+                "row": 2
+              },
+              {
+                "id": "d2",
+                "name": "SignedDecorator",
+                "kind": "class",
+                "members": [
+                  "Content"
+                ],
+                "col": 3,
+                "row": 2
+              }
+            ],
+            "links": [
+              {
+                "from": "concrete",
+                "to": "component",
+                "kind": "realization",
+                "label": null
+              },
+              {
+                "from": "decorator",
+                "to": "component",
+                "kind": "realization",
+                "label": null
+              },
+              {
+                "from": "decorator",
+                "to": "concrete",
+                "kind": "association",
+                "label": "wraps"
+              },
+              {
+                "from": "d1",
+                "to": "decorator",
+                "kind": "inheritance",
+                "label": null
+              },
+              {
+                "from": "d2",
+                "to": "decorator",
+                "kind": "inheritance",
+                "label": null
+              }
+            ]
+          },
+          "code": {
+            "title": "Приукрашивание уведомлений",
+            "language": "csharp",
+            "source": "public interface INotification\n{\n    string Content { get; }\n}\n\npublic sealed class SimpleNotification : INotification\n{\n    public string Content => \"Hello!\";\n}\n\n// Базовый декоратор: оборачивает компонент, реализуя тот же интерфейс.\npublic abstract class NotificationDecorator : INotification\n{\n    private readonly INotification _wrappee;\n    protected NotificationDecorator(INotification wrappee) => _wrappee = wrappee;\n    public virtual string Content => _wrappee.Content;\n}\n\npublic sealed class CriticalDecorator : NotificationDecorator\n{\n    public CriticalDecorator(INotification wrappee) : base(wrappee) { }\n    public override string Content => \"[CRIT]\" + base.Content;\n}\n\npublic sealed class SignedDecorator : NotificationDecorator\n{\n    public SignedDecorator(INotification wrappee) : base(wrappee) { }\n    public override string Content => base.Content + \"--sysadmin\";\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        // Оборачивание на лету: порядок decorators меняет результат.\n        INotification a = new SignedDecorator(new SimpleNotification());\n        INotification b = new CriticalDecorator(new SignedDecorator(a));\n        return $\"{a.Content}|{b.Content}\";\n    }\n}\n\n// Demo.Run() -> \"Hello!--sysadmin|[CRIT]Hello!--sysadmin--sysadmin\""
+          }
+        },
+        {
+          "id": "facade",
+          "name": "Фасад",
+          "intent": "Предоставляет упрощённый интерфейс к сложной подсистеме из множества классов, скрывая детали её работы.",
+          "problem": "Клиент вынужден напрямую взаимодействовать со множеством взаимосвязанных классов подсистемы, зная о их последовательности и контрактах.",
+          "solution": "Один класс-фасад инкапсулирует типичные сценарии обращения к подсистеме и предоставляет клиенту несколько простых методов.",
+          "applicability": [
+            "Нужен простой вход в сложную библиотеку/подсистему",
+            "Хотите разделить слои приложения (UI ← фасад → доменные сервисы)",
+            "Строите API над набором разрозненных модулей"
+          ],
+          "pros": [
+            "Клиент отвязан от деталей подсистемы",
+            "Читаемость и удобство использования",
+            "Точка централизации типовых сценариев"
+          ],
+          "cons": [
+            "Фасад может разрастись до «бога-объекта»",
+            "Не даёт прямого доступа к мощным возможностям подсистемы"
+          ],
+          "diagram": {
+            "title": "Фасад: конвертация видео",
+            "nodes": [
+              {
+                "id": "facade",
+                "name": "VideoConverterFacade",
+                "kind": "class",
+                "members": [
+                  "Convert(file, format)"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "s1",
+                "name": "CodecFactory",
+                "kind": "class",
+                "members": [
+                  "Extract()"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "s2",
+                "name": "AudioExtractor",
+                "kind": "class",
+                "members": [
+                  "EncodeToMp3()"
+                ],
+                "col": 1,
+                "row": 1
+              },
+              {
+                "id": "s3",
+                "name": "FlippingWriter",
+                "kind": "class",
+                "members": [
+                  "Save()"
+                ],
+                "col": 2,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "facade",
+                "to": "s1",
+                "kind": "dependency",
+                "label": null
+              },
+              {
+                "from": "facade",
+                "to": "s2",
+                "kind": "dependency",
+                "label": null
+              },
+              {
+                "from": "facade",
+                "to": "s3",
+                "kind": "dependency",
+                "label": null
+              }
+            ]
+          },
+          "code": {
+            "title": "Единая точка входа в конвейер конвертации",
+            "language": "csharp",
+            "source": "public sealed class VideoFile\n{\n    public VideoFile(string filePath) => Name = filePath;\n    public string Name { get; }\n}\n\npublic sealed class CodecFactory\n{\n    public string Extract(VideoFile file, string codec) => $\"{file.Name}->{codec}\";\n}\n\npublic sealed class AudioExtractor\n{\n    public string EncodeToMp3(VideoFile file) => $\"{file.Name}.mp3\";\n}\n\npublic sealed class FlippingWriter\n{\n    public void Save(string path, string data) { }\n}\n\n// Фасад: простой интерфейс к подсистеме из нескольких классов.\npublic sealed class VideoConverterFacade\n{\n    private readonly CodecFactory _codecs = new();\n    private readonly AudioExtractor _audio = new();\n    private readonly FlippingWriter _writer = new();\n\n    public string Convert(string file, string format)\n    {\n        var source = new VideoFile(file);\n        var video = _codecs.Extract(source, format);\n        var audioTrack = _audio.EncodeToMp3(source);\n        _writer.Save($\"{source.Name}.{format}\", video);\n        return $\"{video}+{audioTrack}\";\n    }\n}\n\npublic static class Demo\n{\n    public static string Run() => new VideoConverterFacade().Convert(\"fun.avi\", \"mp4\");\n}\n\n// Demo.Run() -> \"fun.avi->mp4+fun.avi.mp3\""
+          }
+        },
+        {
+          "id": "proxy",
+          "name": "Заместитель",
+          "intent": "Provide surrogate placeholder for another object to control access to it, add laziness, caching or protection.",
+          "problem": "Прямой доступ к объекту нежелателен: он слишком дорогой, находится удалённо или требует проверки прав.",
+          "solution": "Заместитель реализует тот же интерфейс, что и реальный объект, перехватывает вызовы и решает — пробросить их дальше, вернуть кэш или отказать.",
+          "applicability": [
+            "Ленивая инициализация тяжёлых ресурсов",
+            "Кэширование результатов частых запросов",
+            "Контроль доступа / авторизация, удалённая проксия (RPC)"
+          ],
+          "pros": [
+            "Клиент работает с тем же интерфейсом",
+            "Контроль и оптимизация доступа без изменения реального объекта",
+            "Логика доступа изолирована"
+          ],
+          "cons": [
+            "Лишний уровень опосредования",
+            "Усложнение кода, особенно для кэша и инвалидации"
+          ],
+          "diagram": {
+            "title": "Заместитель: кэш видеозапросов",
+            "nodes": [
+              {
+                "id": "subject",
+                "name": "IYouTubeClient",
+                "kind": "interface",
+                "members": [
+                  "GetVideo(id)"
+                ],
+                "col": 1,
+                "row": 0
+              },
+              {
+                "id": "real",
+                "name": "YouTubeApi",
+                "kind": "class",
+                "members": [
+                  "GetVideo(id)"
+                ],
+                "col": 0,
+                "row": 1
+              },
+              {
+                "id": "proxy",
+                "name": "CachedYouTubeProxy",
+                "kind": "class",
+                "members": [
+                  "-cache: Dictionary",
+                  "+GetVideo(id)"
+                ],
+                "col": 2,
+                "row": 1
+              }
+            ],
+            "links": [
+              {
+                "from": "real",
+                "to": "subject",
+                "kind": "realization",
+                "label": null
+              },
+              {
+                "from": "proxy",
+                "to": "subject",
+                "kind": "realization",
+                "label": null
+              },
+              {
+                "from": "proxy",
+                "to": "real",
+                "kind": "dependency",
+                "label": "forwards"
+              }
+            ]
+          },
+          "code": {
+            "title": "Кэширующий прокси к внешнему API",
+            "language": "csharp",
+            "source": "public interface IYouTubeClient\n{\n    string GetVideo(int id);\n}\n\npublic sealed class YouTubeApi : IYouTubeClient\n{\n    public static int RequestCount;\n    public string GetVideo(int id) { RequestCount++; return $\"video-{id}\"; }\n}\n\n// Прокси: контролирует доступ + кэширует дорогие запросы.\npublic sealed class CachedYouTubeProxy : IYouTubeClient\n{\n    private readonly Dictionary<int, string> _cache = [];\n    public string GetVideo(int id)\n    {\n        if (_cache.TryGetValue(id, out var cached)) return cached + \"(cached)\";\n        var fresh = new YouTubeApi().GetVideo(id);\n        _cache[id] = fresh;\n        return fresh;\n    }\n}\n\npublic static class Demo\n{\n    public static string Run()\n    {\n        YouTubeApi.RequestCount = 0;\n        IYouTubeClient client = new CachedYouTubeProxy();\n        var first = client.GetVideo(7);\n        var second = client.GetVideo(7);\n        return $\"{first}|{second}|requests:{YouTubeApi.RequestCount}\";\n    }\n}\n\n// Demo.Run() -> \"video-7|video-7(cached)|requests:1\""
+          }
         }
       ]
     },

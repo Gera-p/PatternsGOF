@@ -93,7 +93,9 @@ public class ContentPipelineTests
     public void Map_DiagramsAreMappedWithCorrectKinds()
     {
         var catalog = LoadCatalog();
-        var adapter = catalog.Single(c => c.Id == "structural").Patterns.Single();
+        // Батч 4 добавил ещё структурные паттерны — берём именно adapter.
+        var adapter = catalog.Single(c => c.Id == "structural").Patterns
+            .Single(p => p.Id == "adapter");
 
         adapter.Diagram.Nodes.Should().HaveCount(3);
         adapter.Diagram.Nodes.Should().Contain(n => n.Kind == UmlClassKind.Interface);
