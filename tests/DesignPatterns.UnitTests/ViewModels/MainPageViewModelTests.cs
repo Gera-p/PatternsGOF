@@ -75,6 +75,45 @@ public class MainPageViewModelTests
         vm.ToggleLanguageCommand.CanExecute(null).Should().Be(true);
     }
 
+    [Fact]
+    public async Task Localized_texts_follow_current_language()
+    {
+        // Тот же сценарий, что в ТЗ: переключение языка без перезапуска обновляет UI-строки.
+        var repo = new InMemoryPatternRepository(DemoCatalog.Build());
+        var nav = new Mock<INavigationService>();
+        var loc = UiStrings.CreateDefaultService(AppLanguage.Russian);
+        var vm = new MainPageViewModel(repo, nav.Object, loc);
+        await vm.LoadAsync();
+
+        vm.Title.Should().Be("Паттерны проектирования");
+        vm.LanguageButtonText.Should().Be("EN");
+
+        vm.ToggleLanguageCommand.Execute(null);
+
+        vm.Title.Should().Be("Design Patterns");
+        vm.SearchPlaceholder.Should().Be("Search by name or description…");
+        vm.FavoritesLabel.Should().Be("Favorites");
+        vm.LanguageButtonText.Should().Be("RU");
+    }
+
+    [Fact]
+    public async Task Categories_are_relocalized_on_language_change()
+    {
+        var repo = new InMemoryPatternRepository(DemoCatalog.Build());
+        var nav = new Mock<INavigationService>();
+        var loc = UiStrings.CreateDefaultService(AppLanguage.Russian);
+        var vm = new MainPageViewModel(repo, nav.Object, loc);
+        await vm.LoadAsync();
+
+        var ruNames = vm.Categories.Select(c => c.Name).ToList();
+
+        loc.SetLanguage(AppLanguage.English);
+        await WaitAsync(() => vm.Categories.Count == ruNames.Count && vm.Categories[0].Name != ruNames[0]);
+
+        vm.Categories.Should().NotBeEmpty();
+        vm.Categories.Select(c => c.Name).Should().NotBeEquivalentTo(ruNames);
+    }
+
     private static async Task WaitAsync(Func<bool> condition)
     {
         for (var i = 0; i < 100 && !condition(); i++)

@@ -16,6 +16,9 @@ public partial class PatternDetailViewModel : ObservableObject
 
     private PatternInfo? _pattern;
 
+    /// <summary>Загруженный паттерн (null до LoadAsync).</summary>
+    public PatternInfo? Pattern => _pattern;
+
     public PatternDetailViewModel(
         IPatternRepository repository,
         IFavoritesStore favorites,

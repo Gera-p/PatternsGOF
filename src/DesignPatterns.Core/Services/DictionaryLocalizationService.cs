@@ -30,13 +30,14 @@ public class DictionaryLocalizationService : ILocalizationService
     public string GetString(string key, params object[] args)
     {
         // Fallback: текущая локаль → RU (дефолт) → сам ключ.
-        if (!_strings[CurrentLanguage].TryGetValue(key, out var value) &&
-            !_strings[AppLanguage.Russian].TryGetValue(key, out value))
+        // Языковые словари могут отсутствовать в _strings (например, EN не загружен) — тогда тоже fallback.
+        if ((_strings.TryGetValue(CurrentLanguage, out var current) && current.TryGetValue(key, out var value)) ||
+            (_strings.TryGetValue(AppLanguage.Russian, out var ru) && ru.TryGetValue(key, out value)))
         {
-            return key;
+            return args.Length > 0 ? string.Format(value, args) : value;
         }
 
-        return args.Length > 0 ? string.Format(value, args) : value;
+        return key;
     }
 
     public void SetLanguage(AppLanguage language)

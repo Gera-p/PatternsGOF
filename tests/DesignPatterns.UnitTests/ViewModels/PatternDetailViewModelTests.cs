@@ -52,7 +52,7 @@ public class PatternDetailViewModelTests
         var (vm, _) = Create();
         await vm.LoadAsync("strategy");
 
-        vm.L(vm.Pattern!.Name).Should().Be("Стратегия");
+        vm.Title.Should().Be("Стратегия");
     }
 
     [Fact]
